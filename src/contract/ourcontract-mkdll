@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ $# != 2 ]; then
+    echo "usage: ourcontract-mkdll [CONTRACTS DIR] [CONTRACT]"
+else
+    gcc -fPIC -g -c -Wall -o "$1/$2/code.o" "$1/$2/code.c"
+    gcc -shared -Wl,-soname,"$2/code.so" -o "$1/$2/code.so" "$1/$2/code.o"
+    rm -f "$1/$2/code.o"
+fi
