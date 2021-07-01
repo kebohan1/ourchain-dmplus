@@ -96,6 +96,14 @@ struct ScriptHash : public uint160
     using uint160::uint160;
 };
 
+// struct ContractHash : public uint256
+// {
+//     ContractHash() : uint256() {}
+//     explicit ContractHash(const uint256& hash) : uint256(hash) {}
+//     explicit ContractHash(const CContID& contID);
+//     using uint256::uint256;
+// };
+
 struct WitnessV0ScriptHash : public uint256
 {
     WitnessV0ScriptHash() : uint256() {}

@@ -1,0 +1,68 @@
+{
+    // 使用 IntelliSense 以得知可用的屬性。
+    // 暫留以檢視現有屬性的描述。
+    // 如需詳細資訊，請瀏覽: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "(gdb) bitcoind Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/bitcoind",
+            // "args": ["-server", "-listen", "-port=17592", "-rpcuser=rpcB", "-rpcpassword=pass", "-deprecatedrpc=accounts", "-rpcport=16592", "-datadir=$HOME/regtest/B/", "-connect=localhost:17591", "-regtest", "-pid=$HOME/regtest/B/.pid", "-daemon", "-debug"],
+            "args": ["-regtest"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": false
+                }
+            ]
+        }, 
+        {
+            "name": "(gdb) bitcoin-qt Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/qt/bitcoin-qt",
+            // "args": ["-server", "-listen", "-port=17592", "-rpcuser=rpcB", "-rpcpassword=pass", "-deprecatedrpc=accounts", "-rpcport=16592", "-datadir=$HOME/regtest/B/", "-connect=localhost:17591", "-regtest", "-pid=$HOME/regtest/B/.pid", "-daemon", "-debug"],
+            "args": ["-testnet"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) bitcoin-cli launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/bitcoin-cli",
+            "args": ["-regtest", "-rpcport=16591", "-rpcuser=rpcA", "-rpcpassword=pass", "getblockchaininfo"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}

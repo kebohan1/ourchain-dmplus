@@ -111,7 +111,7 @@ void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possi
 
     // send to contract
      CScript &script = it->second.coin.out.scriptPubKey;
-     CScript::iterator pc=script.begin();
+     CScript::const_iterator pc=script.begin();
      opcodetype op;
      script.GetOp(pc,op);
      if(op == OP_CONTRACT)

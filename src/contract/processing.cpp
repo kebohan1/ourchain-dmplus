@@ -16,6 +16,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <util/system.h>
+#include <key_io.h>
+
 #define BYTE_READ_STATE 0
 #define BYTE_SEND_TO_ADDRESS -1
 #define BYTE_SEND_TO_CONTRACT -2
@@ -108,14 +111,14 @@ static int call_rt(const uint256& contract, const std::vector<std::string> &args
             int ret = fread((void *) &state[0], state.size(), 1, pipe_state_read);
             assert(ret >= 0);
         } else if (flag == BYTE_SEND_TO_ADDRESS) {        // send to address
-            char addr_to[40];
+            std::string addr_to( 40, '\0' );
             CAmount amount;
-            int ret = fread((void *) addr_to, sizeof(char), 40, pipe_state_read);
+            int ret = fread(&addr_to[0], sizeof(char), (size_t)40, pipe_state_read);
             assert(ret >= 0);
             ret = fread((void *) &amount, sizeof(long long), 1, pipe_state_read);
             assert(ret >= 0);
-            CBitcoinAddress address(addr_to);
-            vTxOut.push_back(CTxOut(amount, GetScriptForDestination(address.Get())));
+            CTxDestination address =DecodeDestination(addr_to);
+            vTxOut.push_back(CTxOut(amount, GetScriptForDestination(address)));
         } else if (flag == BYTE_SEND_TO_CONTRACT) {        // send to contract
             char addr_to[64];
             CAmount amount;

@@ -436,9 +436,13 @@ static UniValue sendtoaddress(const JSONRPCRequest& request)
     return tx->GetHash().GetHex();
 }
 
+/*
+ * Edit by Humphrey 2021.6.1
+ */
 UniValue sendtocontract(const JSONRPCRequest& request)
  {
-     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+     std::shared_ptr<CWallet> wallet = GetWalletForJSONRPCRequest(request);
+     CWallet* const pwallet = wallet.get();
      if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
          return NullUniValue;
      }
@@ -467,23 +471,25 @@ UniValue sendtocontract(const JSONRPCRequest& request)
              "\nResult:\n"
              "\"txid\"                  (string) The transaction id.\n"
          );
+    auto locked_chain = pwallet->chain().lock();
+    LOCK(pwallet->cs_wallet);
+    //  LOCK2(cs_main, pwallet->cs_wallet);
 
-     LOCK2(cs_main, pwallet->cs_wallet);
-
-     CContID ctid(uint256S(request.params[0].get_str()));
-
+    //  CContID ctid(uint256S(request.params[0].get_str()));
+     CTxDestination dest = DecodeDestination(request.params[0].get_str());
      // Amount
      CAmount nAmount = AmountFromValue(request.params[1]);
      if (nAmount <= 0)
          throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 
      // Wallet comments
-     CWalletTx wtx;
-     if (request.params.size() > 2 && !request.params[2].isNull() && !request.params[2].get_str().empty())
-         wtx.mapValue["comment"] = request.params[2].get_str();
-     if (request.params.size() > 3 && !request.params[3].isNull() && !request.params[3].get_str().empty())
-         wtx.mapValue["to"]      = request.params[3].get_str();
-
+     // Wallet comments
+    mapValue_t mapValue;
+    if (!request.params[2].isNull() && !request.params[2].get_str().empty())
+        mapValue["comment"] = request.params[2].get_str();
+    if (!request.params[3].isNull() && !request.params[3].get_str().empty())
+        mapValue["to"] = request.params[3].get_str();
+    
      bool fSubtractFeeFromAmount = false;
      if (request.params.size() > 4 && !request.params[4].isNull()) {
          fSubtractFeeFromAmount = request.params[4].get_bool();
@@ -491,11 +497,11 @@ UniValue sendtocontract(const JSONRPCRequest& request)
 
      CCoinControl coin_control;
      if (request.params.size() > 5 && !request.params[5].isNull()) {
-         coin_control.signalRbf = request.params[5].get_bool();
+         coin_control.m_signal_bip125_rbf = request.params[5].get_bool();
      }
 
      if (request.params.size() > 6 && !request.params[6].isNull()) {
-         coin_control.m_confirm_target = ParseConfirmTarget(request.params[6]);
+         coin_control.m_confirm_target = ParseConfirmTarget(request.params[6], pwallet->chain().estimateMaxBlocks());
      }
 
      if (request.params.size() > 7 && !request.params[7].isNull()) {
@@ -507,9 +513,9 @@ UniValue sendtocontract(const JSONRPCRequest& request)
 
      EnsureWalletIsUnlocked(pwallet);
 
-     SendMoney(pwallet, ctid, nAmount, fSubtractFeeFromAmount, wtx, coin_control);
+     CTransactionRef tx =SendMoney(*locked_chain,pwallet, dest, nAmount, fSubtractFeeFromAmount, coin_control,std::move(mapValue));
 
-     return wtx.GetHash().GetHex();
+     return tx->GetHash().GetHex();
  }
 
 static UniValue listaddressgroupings(const JSONRPCRequest& request)
@@ -1819,19 +1825,21 @@ static UniValue gettransaction(const JSONRPCRequest& request)
     CAmount nFee = (wtx.IsFromMe(filter) ? wtx.tx->GetValueOut() - nDebit : 0);
 
     if (wtx.tx->contract.action == contract_action::ACTION_NEW) {
-        //  entry.push_back(Pair("contract_action", "ACTION_NEW"));
-        //  entry.push_back(Pair("contract_code_size", wtx.tx->contract.code.size()));
-        //  entry.push_back(Pair("contract_args_size", wtx.tx->contract.args.size()));
+        // entry.push_back(Pair("contract_action", "ACTION_NEW"));
+        // entry.push_back(Pair("contract_address", wtx.tx->contract.address.GetHex()));
+        // entry.push_back(Pair("contract_code_size", (uint64_t)(wtx.tx->contract.code.size())));
+        // entry.push_back(Pair("contract_args_size", (uint64_t)(wtx.tx->contract.args.size())));
         entry.pushKV("contract_action", "ACTION_NEW");
+        entry.pushKV("contract_address", wtx.tx->contract.address.GetHex());
         entry.pushKV("contract_code_size", wtx.tx->contract.code.size());
         entry.pushKV("contract_args_size", wtx.tx->contract.args.size());
      } else if (wtx.tx->contract.action == contract_action::ACTION_CALL) {
-        //  entry.push_back(Pair("contract_action", "ACTION_CALL"));
-        //  entry.push_back(Pair("contract_callee", wtx.tx->contract.callee.ToString()));
-        //  entry.push_back(Pair("contract_args_size", wtx.tx->contract.args.size()));
+        // entry.push_back(Pair("contract_action", "ACTION_CALL"));
+        // entry.push_back(Pair("contract_callee", wtx.tx->contract.address.GetHex()));
+        // entry.push_back(Pair("contract_args_size", (uint64_t)(wtx.tx->contract.args.size())));
          entry.pushKV("contract_action", "ACTION_CALL");
-         entry.pushKV("contract_callee", wtx.tx->contract.callee.ToString());
-         entry.pushKV("contract_args_size", wtx.tx->contract.args.size());
+         entry.pushKV("contract_callee", wtx.tx->contract.address.GetHex());
+         entry.pushKV("contract_args_size", (uint64_t)wtx.tx->contract.args.size());
      }
 
     entry.pushKV("amount", ValueFromAmount(nNet - nFee));
@@ -3718,6 +3726,13 @@ public:
     }
 
     UniValue operator()(const WitnessUnknown& id) const { return UniValue(UniValue::VOBJ); }
+
+    UniValue operator()(const CContID &contID) const {
+        UniValue obj(UniValue::VOBJ);
+        obj.pushKV("contractID", HexStr(contID));
+        //TODO: may ctid be treated as address
+        return obj;
+    }
 };
 
 static UniValue DescribeWalletAddress(CWallet* pwallet, const CTxDestination& dest)
@@ -4252,11 +4267,11 @@ UniValue walletcreatefundedpsbt(const JSONRPCRequest& request)
     return result;
 }
 
-static void SendContractTx(CWallet * const pwallet, const Contract *contract, const CTxDestination &address, CWalletTx& wtxNew, const CCoinControl& coin_control)
+static void SendContractTx(CWallet * const pwallet, const Contract *contract, const CTxDestination &address, CTransactionRef& wtxNew, const CCoinControl& coin_control)
  {
-     CAmount curBalance = pwallet->GetBalance();
-
-     if (pwallet->GetBroadcastTransactions() && !g_connman)
+    //  CAmount curBalance = pwallet->GetBalance();
+    auto locked_chain = pwallet->chain().lock();
+     if (pwallet->GetBroadcastTransactions() && !pwallet->chain().p2pEnabled())
          throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
 
      // Parse Bitcoin address
@@ -4271,11 +4286,13 @@ static void SendContractTx(CWallet * const pwallet, const Contract *contract, co
     //  CRecipient recipient = {scriptPubKey, curBalance, true};
     CRecipient recipient = {scriptPubKey, 0, false};
      vecSend.push_back(recipient);
-     if (!pwallet->CreateTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, coin_control, true, contract, true)) {
+     if (!pwallet->CreateTransaction(*locked_chain,vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, coin_control, true, contract, true)) {
          throw JSONRPCError(RPC_WALLET_ERROR, strError);
      }
      CValidationState state;
-     if (!pwallet->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+     mapValue_t mapValue;
+    if (!pwallet->CommitTransaction(wtxNew, std::move(mapValue), {} /* orderForm */, reservekey, state)) {
+    //  if (!pwallet->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
          strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
          throw JSONRPCError(RPC_WALLET_ERROR, strError);
      }
@@ -4296,7 +4313,8 @@ static bool ReadFile(const std::string &filename, std::string &buf)
 
  UniValue deploycontract(const JSONRPCRequest& request)
  {
-     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
      if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
          return NullUniValue;
      }
@@ -4315,7 +4333,8 @@ static bool ReadFile(const std::string &filename, std::string &buf)
              HelpExampleCli("deploycontract", "\"contract.c\" \"arg\""));
      }
 
-     LOCK2(cs_main, pwallet->cs_wallet);
+    //  LOCK2(cs_main, pwallet->cs_wallet);
+    LOCK(pwallet->cs_wallet);
 
      // Contract fields
      Contract contract;
@@ -4337,34 +4356,40 @@ static bool ReadFile(const std::string &filename, std::string &buf)
 
      // Generate a new key that is added to wallet
      CPubKey newKey;
+     
      if (!pwallet->GetKeyFromPool(newKey))
          throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
      CKeyID keyID = newKey.GetID();
+     OutputType output_type = pwallet->m_default_change_type != OutputType::CHANGE_AUTO ? pwallet->m_default_change_type : pwallet->m_default_address_type;
+     CTxDestination dest = GetDestinationForKey(newKey,output_type);
 
      std::string strAccount;
-     pwallet->SetAddressBook(keyID, strAccount, "receive");
+     pwallet->SetAddressBook(dest, strAccount, "receive");
 
      // sendtoaddress
-     CBitcoinAddress address(CBitcoinAddress(keyID).ToString());
-     if (!address.IsValid())
+     
+    //  CBitcoinAddress address(CBitcoinAddress(keyID).ToString());
+     if (!IsValidDestination(dest))
          throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
 
      EnsureWalletIsUnlocked(pwallet);
 
-     CWalletTx wtx;
+    //  CWalletTx wtx;
+    CTransactionRef tx;
      CCoinControl no_coin_control;
-     SendContractTx(pwallet, &contract, address.Get(), wtx, no_coin_control);
+     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
 
     //  return wtx.GetHash().GetHex();
     UniValue obj(UniValue::VOBJ);
-    obj.pushKV("txid", wtx.GetHash().GetHex());
-    obj.pushKV("contract address", wtx.tx->contract.address.GetHex());
+    obj.pushKV("txid", tx->GetHash().GetHex());
+    obj.pushKV("contract address", tx->contract.address.GetHex());
     return obj;
  }
 
  UniValue callcontract(const JSONRPCRequest& request)
  {
-     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
      if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
          return NullUniValue;
      }
@@ -4382,7 +4407,8 @@ static bool ReadFile(const std::string &filename, std::string &buf)
              HelpExampleCli("callcontract", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\" \"arg\""));
      }
 
-     LOCK2(cs_main, pwallet->cs_wallet);
+    //  LOCK2(cs_main, pwallet->cs_wallet);
+    LOCK(pwallet->cs_wallet);
 
      // Contract fields
      Contract contract;
@@ -4400,25 +4426,30 @@ static bool ReadFile(const std::string &filename, std::string &buf)
 
      // Generate a new key that is added to wallet
      CPubKey newKey;
+
      if (!pwallet->GetKeyFromPool(newKey))
          throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
      CKeyID keyID = newKey.GetID();
+     OutputType output_type = pwallet->m_default_change_type != OutputType::CHANGE_AUTO ? pwallet->m_default_change_type : pwallet->m_default_address_type;
+     CTxDestination dest = GetDestinationForKey(newKey,output_type);
 
      std::string strAccount;
-     pwallet->SetAddressBook(keyID, strAccount, "receive");
+     pwallet->SetAddressBook(dest, strAccount, "receive");
 
      // sendtoaddress
-     CBitcoinAddress address(CBitcoinAddress(keyID).ToString());
-     if (!address.IsValid())
+    //  CBitcoinAddress address(CBitcoinAddress(keyID).ToString());
+     
+     if (!IsValidDestination(dest))
          throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
 
      EnsureWalletIsUnlocked(pwallet);
 
-     CWalletTx wtx;
+    //  CWalletTx wtx;
+    CTransactionRef tx;
      CCoinControl no_coin_control;
-     SendContractTx(pwallet, &contract, address.Get(), wtx, no_coin_control);
+     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
 
-     return wtx.GetHash().GetHex();
+     return tx->GetHash().GetHex();
  }
 
  UniValue dumpcontractmessage(const JSONRPCRequest& request)

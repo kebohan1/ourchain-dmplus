@@ -1269,9 +1269,9 @@ void CWallet::BlockConnected(const CBlock& block, const std::vector<CTransaction
         SyncTransaction(block.vtx[i], block_hash, i);
         TransactionRemovedFromMempool(block.vtx[i]);
     }
-    for (size_t i = 0, j = pblock->vtx.size(); i < pblock->vvtx.size(); i++, j++) {
-         SyncTransaction(pblock->vvtx[i], pindex, j);
-     }
+    // for (size_t i = 0, j = pblock->vtx.size(); i < pblock->vvtx.size(); i++, j++) {
+    //      SyncTransaction(pblock->vvtx[i], pindex, j);
+    //  }
 
     m_last_block_processed = block_hash;
 }

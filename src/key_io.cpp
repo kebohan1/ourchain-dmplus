@@ -67,6 +67,13 @@ public:
         return bech32::Encode(m_params.Bech32HRP(), data);
     }
 
+    std::string operator()(const CContID& id) const
+    {
+        std::vector<unsigned char> data = m_params.Base58Prefix(CChainParams::PUBKEY_ADDRESS);
+        data.insert(data.end(), id.begin(), id.end());
+        return EncodeBase58Check(data);
+    }
+
     std::string operator()(const CNoDestination& no) const { return {}; }
 };
 
@@ -74,6 +81,7 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
 {
     std::vector<unsigned char> data;
     uint160 hash;
+    uint256 hash256;
     if (DecodeBase58Check(str, data)) {
         // base58-encoded Bitcoin addresses.
         // Public-key-hash-addresses have version 0 (or 111 testnet).
@@ -89,6 +97,14 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
         if (data.size() == hash.size() + script_prefix.size() && std::equal(script_prefix.begin(), script_prefix.end(), data.begin())) {
             std::copy(data.begin() + script_prefix.size(), data.end(), hash.begin());
             return ScriptHash(hash);
+        }
+
+        // Script-hash-addresses have version 5 (or 196 testnet).
+        // The data vector contains SHA256(cscript), where cscript is the serialized redemption script.
+        const std::vector<unsigned char>& contract_prefix  = params.Base58Prefix(CChainParams::PUBKEY_ADDRESS);
+        if (data.size() == hash256.size() + contract_prefix.size() && std::equal(contract_prefix.begin(), contract_prefix.end(), data.begin())) {
+            std::copy(data.begin() + contract_prefix.size(), data.end(), hash.begin());
+            return CContID(hash256);
         }
     }
     data.clear();

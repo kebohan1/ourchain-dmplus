@@ -949,17 +949,23 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
 
 std::string ArgsManager::GetChainName() const
 {
+
     LOCK(cs_args);
+    
     bool fRegTest = ArgsManagerHelper::GetNetBoolArg(*this, "-regtest");
     bool fTestNet = ArgsManagerHelper::GetNetBoolArg(*this, "-testnet");
 
     if (fTestNet && fRegTest)
         throw std::runtime_error("Invalid combination of -regtest and -testnet.");
-    if (fRegTest)
+    if (fRegTest){
+        // throw std::runtime_error("Invalid combination of -regtest and -testnet.");
         return CBaseChainParams::REGTEST;
+    }
+        
     if (fTestNet)
         return CBaseChainParams::TESTNET;
     return CBaseChainParams::MAIN;
+
 }
 
 bool RenameOver(fs::path src, fs::path dest)
