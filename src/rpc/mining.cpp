@@ -34,6 +34,7 @@
 #include <memory>
 #include <stdint.h>
 
+#include <iostream>
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
  * or from the last difficulty change if 'lookup' is nonpositive.
@@ -114,6 +115,7 @@ static UniValue generateBlocks(const CScript& coinbase_script, int nGenerate, ui
     }
     unsigned int nExtraNonce = 0;
     UniValue blockHashes(UniValue::VARR);
+    std::cout << "[notice] generate blocks" << std::endl;
     while (nHeight < nHeightEnd && !ShutdownRequested())
     {
         std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbase_script));
@@ -170,7 +172,7 @@ static UniValue generatetoaddress(const JSONRPCRequest& request)
     if (!request.params[2].isNull()) {
         nMaxTries = request.params[2].get_int();
     }
-
+    std::cout << request.params[1].get_str() << std::endl;
     CTxDestination destination = DecodeDestination(request.params[1].get_str());
     if (!IsValidDestination(destination)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");

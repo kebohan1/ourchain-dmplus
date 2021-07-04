@@ -101,11 +101,11 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
 
         // Script-hash-addresses have version 5 (or 196 testnet).
         // The data vector contains SHA256(cscript), where cscript is the serialized redemption script.
-        const std::vector<unsigned char>& contract_prefix  = params.Base58Prefix(CChainParams::PUBKEY_ADDRESS);
-        if (data.size() == hash256.size() + contract_prefix.size() && std::equal(contract_prefix.begin(), contract_prefix.end(), data.begin())) {
-            std::copy(data.begin() + contract_prefix.size(), data.end(), hash.begin());
-            return CContID(hash256);
-        }
+        // const std::vector<unsigned char>& contract_prefix  = params.Base58Prefix(CChainParams::CONTRACT_ADDRESS);
+        // if (data.size() == hash256.size() + contract_prefix.size() && std::equal(contract_prefix.begin(), contract_prefix.end(), data.begin())) {
+        //     std::copy(data.begin() + contract_prefix.size(), data.end(), hash.begin());
+        //     return CContID(hash256);
+        // }
     }
     data.clear();
     auto bech = bech32::Decode(str);

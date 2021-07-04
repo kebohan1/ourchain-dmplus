@@ -934,12 +934,12 @@ static void GetFromIPFS(CBlock& block, string str)
     // ---- change api from /object/get to /cat ---- Hank 20190902
     string request_uri = "/api/v0/cat?arg=" + str + "&encoding=json";
     http_client client(U("http://127.0.0.1:5001"));
-    http_request request(methods::GET);
+    http_request request(methods::POST);
     // request.set_request_uri("/api/v0/object/get?arg=QmaaqrHyAQm7gALkRW8DcfGX3u8q9rWKnxEMmf7m9z515w&encoding=json");
     request.set_request_uri(request_uri);
     pplx::task<http_response> responses = client.request(request);
     pplx::task<string> responseStr = responses.get().extract_string();
-    // cout << "Response json:\n" << responseStr.get() << endl;
+    cout << "Response json:\n" << responseStr.get() << endl;
 
     //---- unserialize json string to the original CBlock data structure ---- Hank 20190902
     // CBlock block_json;    
@@ -1413,7 +1413,7 @@ CTransactionRef ProcessContractTx(const Contract &cont, CCoinsViewCache& inputs,
      if (!ProcessContract(cont,mtx.vout,cs.state,balance,nextContract)) return CTransactionRef();
      // update cont state
      cs.coins.clear();
-     inputs.AddContState(cont.address,std::move(cs));
+
      if(mtx.vin.size() == 0) return CTransactionRef();
      // add the change
      CAmount amount = 0;
@@ -2170,7 +2170,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
         while (!contractQueue.empty()) {
             Contract cur = std::move(contractQueue.front());
             contractQueue.pop();
-
+            cout << "Contract Queue Size:"<<contractQueue.size() << endl;
             std::vector<Contract> contractCall;
             CTransactionRef ptx = ProcessContractTx(cur, view, contractCall);
             if (ptx) {

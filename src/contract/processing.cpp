@@ -18,6 +18,7 @@
 
 #include <util/system.h>
 #include <key_io.h>
+#include <iostream>
 
 #define BYTE_READ_STATE 0
 #define BYTE_SEND_TO_ADDRESS -1
@@ -41,13 +42,14 @@ static int call_mkdll(const uint256& contract)
     int pid, status;
 
     pid = fork();
+    std::cout << "PID:" << pid << std::endl;
     if(pid == 0) {
         int fd = open((GetContractsDir().string() + "/err").c_str(),
                       O_WRONLY | O_APPEND | O_CREAT,
                       0664);
         dup2(fd, STDERR_FILENO);
         close(fd);
-
+        std::cout<<"fork 0 fd open done." << std::endl;
         execlp("ourcontract-mkdll",
                "ourcontract-mkdll",
                GetContractsDir().string().c_str(),

@@ -50,7 +50,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/src/bitcoin-cli",
-            "args": ["-regtest", "-rpcport=16591", "-rpcuser=rpcA", "-rpcpassword=pass", "getblockchaininfo"],
+            "args": ["-regtest", "generatetoaddress", "1", "2N7yXXrxp8UBTUSmMNbVXs3PaH7jM1znWjK"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
