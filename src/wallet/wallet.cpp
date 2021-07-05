@@ -36,6 +36,7 @@
 #include <future>
 
 #include <boost/algorithm/string/replace.hpp>
+#include <iostream>
 
 static const size_t OUTPUT_GROUP_MAX_ENTRIES = 10;
 
@@ -2759,7 +2760,7 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
     }
 
     CMutableTransaction txNew;
-
+    
     txNew.nLockTime = GetLocktimeForNewTransaction(chain(), locked_chain);
     if (contract != NULL) txNew.contract = *contract;
 
@@ -2779,7 +2780,7 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
             // TODO: pass in scriptChange instead of reservekey so
             // change transaction isn't always pay-to-bitcoin-address
             CScript scriptChange;
-
+            
             // coin control: send change to custom address
             if (!boost::get<CNoDestination>(&coin_control.destChange)) {
                 scriptChange = GetScriptForDestination(coin_control.destChange);
@@ -3082,6 +3083,7 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
             return false;
         }
     }
+    std::cout << "Wallet Check point 2" <<std::endl;
 
     if (gArgs.GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
         // Lastly, ensure this tx will pass the mempool's chain limits

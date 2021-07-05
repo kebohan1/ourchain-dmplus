@@ -39,6 +39,7 @@
 #include <univalue.h>
 
 #include <functional>
+#include <iostream>
 
 static const std::string WALLET_ENDPOINT_BASE = "/wallet/";
 
@@ -56,6 +57,7 @@ std::shared_ptr<CWallet> GetWalletForJSONRPCRequest(const JSONRPCRequest& reques
 {
     std::string wallet_name;
     if (GetWalletNameFromJSONRPCRequest(request, wallet_name)) {
+        std::cout << "Wallet name:" << wallet_name << std::endl;
         std::shared_ptr<CWallet> pwallet = GetWallet(wallet_name);
         if (!pwallet) throw JSONRPCError(RPC_WALLET_NOT_FOUND, "Requested wallet does not exist or is not loaded");
         return pwallet;

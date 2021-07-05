@@ -5,6 +5,7 @@
 
 #include <validation.h>
 
+#include "contract/processing.h"
 #include <arith_uint256.h>
 #include <chain.h>
 #include <chainparams.h>
@@ -42,7 +43,6 @@
 #include <util/strencodings.h>
 #include <util/system.h>
 #include <util/validation.h>
-#include "contract/processing.h"
 #include <validationinterface.h>
 #include <warnings.h>
 
@@ -50,11 +50,15 @@
 #include <cpprest/http_client.h>
 #include <future>
 #include <sstream>
+#include <fstream>
 
 #include "core_io.h"    // Hank edit 19.09.02
 #include "leveldb/db.h" // Henry edit 19.07.15
 #include <stdlib.h>
 #include <string>
+#include <wallet/wallet.h>
+#include <wallet/rpcwallet.h>
+#include <wallet/coincontrol.h>
 
 // added by Hank 20190715
 using namespace std;
@@ -939,10 +943,11 @@ static void GetFromIPFS(CBlock& block, string str)
     request.set_request_uri(request_uri);
     pplx::task<http_response> responses = client.request(request);
     pplx::task<string> responseStr = responses.get().extract_string();
-    cout << "Response json:\n" << responseStr.get() << endl;
+    cout << "Response json:\n"
+         << responseStr.get() << endl;
 
     //---- unserialize json string to the original CBlock data structure ---- Hank 20190902
-    // CBlock block_json;    
+    // CBlock block_json;
     stringstream_t s;
     s << responseStr.get();
     json::value Response = json::value::parse(s);
@@ -953,17 +958,17 @@ static void GetFromIPFS(CBlock& block, string str)
 
     block.nVersion = atoi(Response["nVersion"].serialize());
     // cout << "nVersion: " << atoi(Response["nVersion"].serialize()) << endl;
-    
+
     temp = Response["hashMerkleRoot"].serialize();
-    temp.erase(0,temp.find_first_not_of("\""));
-    temp.erase(temp.find_last_not_of("\"")+1); 
+    temp.erase(0, temp.find_first_not_of("\""));
+    temp.erase(temp.find_last_not_of("\"") + 1);
     block.hashMerkleRoot = uint256S(temp);
     // cout << "hashMerkleRoot: " << Response["hashMerkleRoot"].serialize() << endl;
 
     temp = Response["hashPrevBlock"].serialize();
-    temp.erase(0,temp.find_first_not_of("\""));
-    temp.erase(temp.find_last_not_of("\"")+1); 
-    block.hashPrevBlock = uint256S(temp);    
+    temp.erase(0, temp.find_first_not_of("\""));
+    temp.erase(temp.find_last_not_of("\"") + 1);
+    block.hashPrevBlock = uint256S(temp);
     // cout << "hashPrevBlock: " << Response["hashPrevBlock"].serialize() << endl;
 
     block.nTime = atoi(Response["nTime"].serialize());
@@ -972,16 +977,16 @@ static void GetFromIPFS(CBlock& block, string str)
     // cout << "nBits: " << Response["nBits"].serialize() << endl;
     block.nNonce = atoi(Response["nNonce"].serialize());
     // cout << "nNonce: " << Response["nNonce"].serialize() << endl;
-    
-    for(int i =0; i < atoi(Response["vtx"]["size"].serialize()); i++){
+
+    for (int i = 0; i < atoi(Response["vtx"]["size"].serialize()); i++) {
         string txHex = Response["vtx"]["Txs"][i].serialize();
-        txHex.erase(0,txHex.find_first_not_of("\""));
-        txHex.erase(txHex.find_last_not_of("\"")+1);    
-        // cout << "txHex: " << txHex << endl;   
+        txHex.erase(0, txHex.find_first_not_of("\""));
+        txHex.erase(txHex.find_last_not_of("\"") + 1);
+        // cout << "txHex: " << txHex << endl;
         CMutableTransaction Mtx{};
-        DecodeHexTx(Mtx,txHex,true);
+        DecodeHexTx(Mtx, txHex, true);
         block.vtx.push_back(MakeTransactionRef(std::move(Mtx)));
-    }      
+    }
     // CTransaction finaltx = CTransaction(Mtx);
     // cout << "finaltx:\n" << finaltx.ToString() << endl;
     // cout << block.ToString() << endl;
@@ -1016,6 +1021,126 @@ static string AddToIPFS(string str)
 
     // cout << "responses body \n" << s.get() << endl;
     return s.get();
+}
+
+//  static bool LoadContractCode(Contract &contract, const std::string &filename)
+static bool ReadFile(const std::string &filename, std::string &buf)
+{
+     std::string line;
+     std::ifstream file(filename);
+
+     if (file.is_open() == false) return false;
+    //  while (getline(file, line)) contract.code += (line + "\n");
+    while (getline(file, line)) buf += (line + "\n");
+     file.close();
+     return true;
+}
+
+static bool SendContractTx(CWallet * const pwallet, const Contract *contract, const CTxDestination &address, CTransactionRef& wtxNew, const CCoinControl& coin_control)
+ {
+    //  CAmount curBalance = pwallet->GetBalance();
+    cout<< "Chain start lock"<<endl;
+    auto locked_chain = pwallet->chain().lock();
+    cout<< "Chain locked"<<endl;
+     if (pwallet->GetBroadcastTransactions() && !pwallet->chain().p2pEnabled()){
+         cout << "Error: Peer-to-peer functionality missing or disabled"<< endl;
+        return false;
+     }
+    cout<< "Broadcast Complete"<<endl;
+
+     // Parse Bitcoin address
+     CScript scriptPubKey = GetScriptForDestination(address);
+
+     // Create and send the transaction
+     CReserveKey reservekey(pwallet);
+     CAmount nFeeRequired;
+     std::string strError;
+     std::vector<CRecipient> vecSend;
+     int nChangePosRet = -1;
+    //  CRecipient recipient = {scriptPubKey, curBalance, true};
+    CRecipient recipient = {scriptPubKey, 0, false};
+     vecSend.push_back(recipient);
+    cout<< "Start create transaction"<<endl;
+     if (!pwallet->CreateTransaction(*locked_chain,vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, coin_control, true, contract, true)) {
+         return false;
+     }
+     CValidationState state;
+     mapValue_t mapValue;
+    cout<< "End create transaction"<<endl;
+
+    if (!pwallet->CommitTransaction(wtxNew, std::move(mapValue), {} /* orderForm */, reservekey, state)) {
+    //  if (!pwallet->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+         strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+         return false;
+     }
+    cout<< "End commit transaction"<<endl;
+    return true;
+ }
+
+bool deployStoreContract()
+{
+    std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
+    std::shared_ptr<CWallet> const wallet = wallets[0];
+    CWallet* const pwallet = wallet.get();
+
+    LOCK(pwallet->cs_wallet);
+
+    Contract contract;
+    size_t t;
+    char * path = NULL;
+    cout << "NOW PATH:" << getcwd(path,t) << endl;
+    if (ReadFile((string)(getcwd(path,t))+"/contracts/hello/code.c", contract.code) == false) {
+        cout << "[Error] Could not open code.c to deploy contract" << endl;
+        return false;
+    }
+    cout << "Readfile complete" << endl;
+    contract.action = contract_action::ACTION_NEW;
+
+    contract.address = uint256();
+
+    // getnewaddress
+    if (!pwallet->IsLocked())
+        pwallet->TopUpKeyPool();
+    // Generate a new key that is added to wallet
+    CPubKey newKey;
+    cout << "Checkadd complete" << endl;
+    if (!pwallet->GetKeyFromPool(newKey)){
+        cout << "[Error] Keypool ran out, please call keypoolrefill first" << endl;
+        return false;
+    }
+    cout << "Get Key pool complete" << endl;
+    CKeyID keyID = newKey.GetID();
+    OutputType output_type = pwallet->m_default_change_type != OutputType::CHANGE_AUTO ? pwallet->m_default_change_type : pwallet->m_default_address_type;
+    CTxDestination dest = GetDestinationForKey(newKey, output_type);
+
+    std::string strAccount;
+    pwallet->SetAddressBook(dest, strAccount, "receive");
+
+    // sendtoaddress
+
+    //  CBitcoinAddress address(CBitcoinAddress(keyID).ToString());
+    if (!IsValidDestination(dest)){
+        cout << "[Error] Invalid Bitcoin address" << endl;
+        return false;
+    }
+        
+    cout << "Before ensure wallet unlocked" << endl;
+    
+    if (pwallet->IsLocked()) {
+        cout << "Error: Please enter the wallet passphrase with walletpassphrase first." << endl;  
+    }
+
+    //  CWalletTx wtx;
+    CTransactionRef tx;
+    CCoinControl no_coin_control;
+    cout << "Start send tx" << endl;
+    SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
+    cout << "End send tx" << endl;
+
+    //  return wtx.GetHash().GetHex();
+    cout << "txid:" << tx->GetHash().GetHex() <<endl;
+    cout << "contract address" << tx->contract.address.GetHex() << endl;
+    return true;
 }
 //////////////////////////////////////////////////////////////////////////////
 // Author : Hank
@@ -1129,7 +1254,8 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     // string blockinfo = "";
     // blockinfo.append(block.ToString());
     // AddToIPFS(blockinfo);
-
+    
+    deployStoreContract();
     // Open history file to append
     CAutoFile fileout(OpenBlockFile(pos), SER_DISK, CLIENT_VERSION);
     if (fileout.IsNull())
@@ -1186,8 +1312,10 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 
     // cout << "Getting block from this hash:" << IPFShash << endl;
     // ---- Get IPFS file by IPFShash ----
+    cout << "Test False:" << false <<endl;
     block.SetNull();
     GetFromIPFS(block, IPFShash);
+    
     /* Do not use levelDB ----Hanry 20191209
     if (!ReadBlockFromDisk(block, blockPos, consensusParams))
         return false;
@@ -1396,34 +1524,32 @@ void CChainState::InvalidBlockFound(CBlockIndex* pindex, const CValidationState&
     }
 }
 
-CTransactionRef ProcessContractTx(const Contract &cont, CCoinsViewCache& inputs,
-                                   std::vector<Contract> &nextContract)
- {
-     if (cont.action==0) return CTransactionRef();
-     CMutableTransaction mtx;
-     ContState cs;
-     CAmount balance = 0;
-     inputs.GetContState(cont.address,cs);
-     for (const COutPoint &outpoint : cs.coins)
-     {
-         mtx.vin.push_back(CTxIn(outpoint));
-         balance += inputs.AccessCoin(outpoint).out.nValue;
-     }
+CTransactionRef ProcessContractTx(const Contract& cont, CCoinsViewCache& inputs, std::vector<Contract>& nextContract)
+{
+    if (cont.action == 0) return CTransactionRef();
+    CMutableTransaction mtx;
+    ContState cs;
+    CAmount balance = 0;
+    inputs.GetContState(cont.address, cs);
+    for (const COutPoint& outpoint : cs.coins) {
+        mtx.vin.push_back(CTxIn(outpoint));
+        balance += inputs.AccessCoin(outpoint).out.nValue;
+    }
 
-     if (!ProcessContract(cont,mtx.vout,cs.state,balance,nextContract)) return CTransactionRef();
-     // update cont state
-     cs.coins.clear();
+    if (!ProcessContract(cont, mtx.vout, cs.state, balance, nextContract)) return CTransactionRef();
+    // update cont state
+    cs.coins.clear();
 
-     if(mtx.vin.size() == 0) return CTransactionRef();
-     // add the change
-     CAmount amount = 0;
-     for (const CTxOut &txout : mtx.vout)
-         amount += txout.nValue;
-     assert(amount<=balance);
-     if(amount<balance)
-         mtx.vout.push_back(CTxOut(balance-amount, GetScriptForContract(cont.address)));
-     return MakeTransactionRef(mtx);
- }
+    if (mtx.vin.size() == 0) return CTransactionRef();
+    // add the change
+    CAmount amount = 0;
+    for (const CTxOut& txout : mtx.vout)
+        amount += txout.nValue;
+    assert(amount <= balance);
+    if (amount < balance)
+        mtx.vout.push_back(CTxOut(balance - amount, GetScriptForContract(cont.address)));
+    return MakeTransactionRef(mtx);
+}
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo& txundo, int nHeight)
 {
@@ -2170,14 +2296,14 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
         while (!contractQueue.empty()) {
             Contract cur = std::move(contractQueue.front());
             contractQueue.pop();
-            cout << "Contract Queue Size:"<<contractQueue.size() << endl;
+            cout << "Contract Queue Size:" << contractQueue.size() << endl;
             std::vector<Contract> contractCall;
             CTransactionRef ptx = ProcessContractTx(cur, view, contractCall);
             if (ptx) {
                 block.vvtx.push_back(ptx);
                 blockundo.vtxundo.push_back(CTxUndo());
                 UpdateCoins(*ptx, view, blockundo.vtxundo.back(), pindex->nHeight);
-                for (Contract &nextContract: contractCall) {
+                for (Contract& nextContract : contractCall) {
                     contractQueue.push(std::move(nextContract));
                 }
             }
