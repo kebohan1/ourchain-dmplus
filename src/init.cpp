@@ -1759,7 +1759,8 @@ bool AppInitMain(InitInterfaces& interfaces)
     {
         LOCK(cs_main);
         LogPrintf("mapBlockIndex.size() = %u\n", mapBlockIndex.size());
-        chain_active_height = ::ChainActive().Height();
+        // chain_active_height = ::ChainActive().Height();
+        chain_active_height = 0;
     }
     LogPrintf("nBestHeight = %d\n", chain_active_height);
 
