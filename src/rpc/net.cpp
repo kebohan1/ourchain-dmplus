@@ -235,10 +235,15 @@ static UniValue addnode(const JSONRPCRequest& request)
 
     std::string strNode = request.params[0].get_str();
 
+    std::cout << std::endl << "In addnode function :" << std::endl;
+    std::cout << std::endl << "request part[0] = " << request.params[0].get_str() << std::endl;
+    std::cout << std::endl << "request part[1] = " << request.params[1].get_str() << std::endl;
+
     if (strCommand == "onetry")
     {
         CAddress addr;
         g_connman->OpenNetworkConnection(addr, false, nullptr, strNode.c_str(), false, false, true);
+
         return NullUniValue;
     }
 
@@ -252,6 +257,41 @@ static UniValue addnode(const JSONRPCRequest& request)
         if(!g_connman->RemoveAddedNode(strNode))
             throw JSONRPCError(RPC_CLIENT_NODE_NOT_ADDED, "Error: Node has not been added.");
     }
+
+    return NullUniValue;
+}
+
+static UniValue senddata(const JSONRPCRequest& request)
+{
+    std::string strCommand;
+    if (!request.params[1].isNull())
+        strCommand = request.params[1].get_str();
+    if (request.fHelp || request.params.size() != 2 )
+        throw std::runtime_error(
+            RPCHelpMan{"senddata",
+                "\nAttempts to add or remove a node from the addnode list.\n"
+                "Or try a connection to a node once.\n"
+                "Nodes added using addnode (or -connect) are protected from DoS disconnection and are not required to be\n"
+                "full nodes/support SegWit as other outbound peers are (though such peers will not be synced from).\n",
+                {
+                    {"node", RPCArg::Type::STR, RPCArg::Optional::NO, "The node (see getpeerinfo for nodes)"},
+                    {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "File's name and location."},
+                },
+                RPCResults{},
+                RPCExamples{
+                    HelpExampleCli("senddata", "\"192.168.0.6:8333\" \"Filename\"")
+            + HelpExampleRpc("senddata", "\"192.168.0.6:8333\", \"Filename\"")
+                },
+            }.ToString());
+
+    if(!g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+    std::string strNode = request.params[0].get_str();
+    std::string Filename = request.params[1].get_str();
+
+    CAddress addr;
+    g_connman->SendDataConnection(addr, false, nullptr, strNode.c_str(), false, false, true, Filename.c_str());
 
     return NullUniValue;
 }
@@ -745,6 +785,7 @@ static const CRPCCommand commands[] =
     { "network",            "ping",                   &ping,                   {} },
     { "network",            "getpeerinfo",            &getpeerinfo,            {} },
     { "network",            "addnode",                &addnode,                {"node","command"} },
+    { "network",            "senddata",               &senddata,               {"node","command"} },
     { "network",            "disconnectnode",         &disconnectnode,         {"address", "nodeid"} },
     { "network",            "getaddednodeinfo",       &getaddednodeinfo,       {"node"} },
     { "network",            "getnettotals",           &getnettotals,           {} },

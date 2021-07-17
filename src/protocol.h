@@ -83,6 +83,9 @@ extern const char *VERACK;
  * network.
  * @see https://bitcoin.org/en/developer-reference#addr
  */
+extern const char *SENDDATABLK;
+extern const char *RECEIVEDATABLK;
+
 extern const char *ADDR;
 /**
  * The inv message (inventory message) transmits one or more inventories of

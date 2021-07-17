@@ -363,6 +363,9 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         }
     }
 
+    // std::cout << std::endl << "ConnectNode function :" << std::endl; 
+
+    
     /// debug print
     LogPrint(BCLog::NET, "trying connection %s lastseen=%.1fhrs\n",
         pszDest ? pszDest : addrConnect.ToString(),
@@ -429,6 +432,11 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         SplitHostPort(std::string(pszDest), port, host);
         connected = ConnectThroughProxy(proxy, host, port, hSocket, nConnectTimeout, nullptr);
     }
+
+    // std::cout << std::endl << addrConnect.ToString() << std::endl;
+    // std::cout << std::endl << addrConnect.ToStringIP() << std::endl;
+    // std::cout << std::endl << addrConnect.GetPort() << std::endl;
+
     if (!connected) {
         CloseSocket(hSocket);
         return nullptr;
@@ -440,6 +448,42 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     CAddress addr_bind = GetBindAddress(hSocket);
     CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addrConnect, CalculateKeyedNetGroup(addrConnect), nonce, addr_bind, pszDest ? pszDest : "", false);
     pnode->AddRef();
+
+    // int nBytes;
+    // int check;
+    // char buffer[1024];
+    // char buffer2[1024];
+    // memset(buffer, '\0', 1024);
+    // memset(buffer2, '\0', 1024);
+    // struct sockaddr_in serverAddr;
+    // socklen_t addr_size;
+
+    // clientSocket = socket(PF_INET, SOCK_STREAM, 0);
+
+    // portNum = 8330;
+
+    // serverAddr.sin_family = AF_INET;
+    // serverAddr.sin_port = htons(portNum);
+    // serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    // memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);  
+
+    // addr_size = sizeof(serverAddr);
+    // connect(clientSocket, (struct sockaddr *) &serverAddr, addr_size);
+
+    // -----------------------
+    // printf("Type a sentence to send to server:\n");
+    // fgets(buffer,1024,stdin);
+    // //printf("You typed: %s",buffer);
+
+    // nBytes = strlen(buffer) + 1;
+
+    // check = send(hSocket,buffer,nBytes,0);
+    // std::cout << check << std::endl;
+
+    // nBytes = recv(hSocket, buffer2, 1024, 0);
+    // std::cout << nBytes << std::endl;
+    // printf("Received from server: %s\n\n",buffer2);  
+    //-------------------------------
 
     return pnode;
 }
@@ -964,6 +1008,26 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     pnode->m_prefer_evict = bannedlevel > 0;
     m_msgproc->InitializeNode(pnode);
 
+    // //------------------------------
+    // //std::cout << std::endl << "who am i" << std::endl;
+    // int nBytes = 0;
+    // char buffer3[1024];
+    // // memset(buffer3, '\0', 1024);
+    // /*loop while connection is live*/
+    // nBytes = recv(hSocket,buffer3,1024,0);
+    // std::cout << nBytes << std::endl;
+
+    // printf("\nI received data from node1\n");
+    // std::cout << buffer3 << std::endl;
+
+    // // for (i=0;i<nBytes-1;i++){
+    // //     buffer[i] = toupper(buffer[i]);
+    // // }
+
+    // send(hSocket,buffer3,nBytes,0);
+    // // std::cout << nBytes << std::endl;
+    // //----------------------------------
+
     LogPrint(BCLog::NET, "connection from %s accepted\n", addr.ToString());
 
     {
@@ -1302,6 +1366,7 @@ void CConnman::SocketHandler()
                 if (pnode->hSocket == INVALID_SOCKET)
                     continue;
                 nBytes = recv(pnode->hSocket, pchBuf, sizeof(pchBuf), MSG_DONTWAIT);
+                // printf("Received from server: %c %c %c\n",pchBuf[0], pchBuf[1], pchBuf[2]);  
             }
             if (nBytes > 0)
             {
@@ -1905,6 +1970,7 @@ void CConnman::ThreadOpenAddedConnections()
 // if successful, this moves the passed grant to the constructed node
 void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant *grantOutbound, const char *pszDest, bool fOneShot, bool fFeeler, bool manual_connection)
 {
+    // std::cout << std::endl << "In OpenNetworkConnection function :" << std::endl << "pszDest(try to connect side) = " << pszDest << std::endl;
     //
     // Initiate outbound network connection
     //
@@ -1940,6 +2006,113 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         LOCK(cs_vNodes);
         vNodes.push_back(pnode);
     }
+
+    char tmp2[100];
+    fgets(tmp2,100,stdin);
+    send(pnode->hSocket,"OpenNetworkConnection\0",strlen("OpenNetworkConnection\0"),0);
+    // int nBytes;
+    // int check;
+    // char buffer[1024];
+    // // char buffer2[1024];
+    // memset(buffer, '\0', 1024);
+    // // memset(buffer2, '\0', 1024);
+    // // struct sockaddr_in serverAddr;
+    // // socklen_t addr_size;
+
+    // // clientSocket = socket(PF_INET, SOCK_STREAM, 0);
+
+    // // portNum = 8330;
+
+    // // serverAddr.sin_family = AF_INET;
+    // // serverAddr.sin_port = htons(portNum);
+    // // serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    // // memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);  
+
+    // // addr_size = sizeof(serverAddr);
+    // // connect(clientSocket, (struct sockaddr *) &serverAddr, addr_size);
+
+    // // -----------------------
+    // std::cout << std::endl;
+    // std::cout << "Type a sentence to send to server:" << std::endl;
+    // fgets(buffer,1024,stdin);
+    // //printf("You typed: %s",buffer);
+
+    // nBytes = strlen(buffer);
+
+    // check = send(pnode->hSocket,buffer,nBytes,0);
+    // std::cout << check << std::endl;
+
+    // // nBytes = recv(pnode->hSocket, buffer2, 1024, 0);
+    // // std::cout << nBytes << std::endl;
+    // // printf("Received from server: %s\n\n",buffer2);  
+    // //-------------------------------
+
+}
+
+// if successful, this moves the passed grant to the constructed node
+void CConnman::SendDataConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant *grantOutbound, const char *pszDest, bool fOneShot, bool fFeeler, bool manual_connection, const char *filename)
+{
+    // std::cout << std::endl << "In SendDataConnection function :" << std::endl << "pszDest(try to connect side) = " << pszDest << std::endl;
+    //
+    // Initiate outbound network connection
+    //
+    if (interruptNet) {
+        return;
+    }
+    if (!fNetworkActive) {
+        return;
+    }
+    if (!pszDest) {
+        if (IsLocal(addrConnect) ||
+            FindNode(static_cast<CNetAddr>(addrConnect)) || (m_banman && m_banman->IsBanned(addrConnect)) ||
+            FindNode(addrConnect.ToStringIPPort()))
+            return;
+    } else if (FindNode(std::string(pszDest)))
+        return;
+
+    CNode* pnode = ConnectNode(addrConnect, pszDest, fCountFailure, manual_connection);
+
+    if (!pnode)
+        return;
+    if (grantOutbound)
+        grantOutbound->MoveTo(pnode->grantOutbound);
+    if (fOneShot)
+        pnode->fOneShot = true;
+    if (fFeeler)
+        pnode->fFeeler = true;
+    if (manual_connection)
+        pnode->m_manual_connection = true;
+
+    m_msgproc->InitializeNode(pnode);
+    {
+        LOCK(cs_vNodes);
+        vNodes.push_back(pnode);
+    }
+
+/* ----------------------- send data ------------------------------- */
+    FILE* fd;
+    int nBytes;
+    char buffer[1024];
+    char tmp3[100];
+    // sleep(1);
+    // usleep(10);
+    fd = fopen(filename, "rb");
+
+    fgets(tmp3,100,stdin);
+    // sleep(1);
+    send(pnode->hSocket,"RDB send start\0",strlen("RDB send start\0"),0);
+    fgets(tmp3,100,stdin);
+    // sleep(1);
+    printf("Send data...");
+    // send(pnode->hSocket, filename, sizeof(filename), 0);
+    while(!feof(fd)){
+		nBytes = fread(buffer, sizeof(char), sizeof(buffer), fd);
+		printf("\nfread %d bytes, ", nBytes);
+		nBytes = send(pnode->hSocket, buffer, nBytes, 0);
+		printf("\nSending %d bytesn\n",nBytes);
+	}
+    fclose(fd);
+
 }
 
 void CConnman::ThreadMessageHandler()

@@ -17,6 +17,8 @@ static std::atomic<bool> g_initial_block_download_completed(false);
 namespace NetMsgType {
 const char *VERSION="version";
 const char *VERACK="verack";
+const char *SENDDATABLK="senddatablk";
+const char *RECEIVEDATABLK="receivedatablk";
 const char *ADDR="addr";
 const char *INV="inv";
 const char *GETDATA="getdata";
@@ -49,6 +51,8 @@ const char *BLOCKTXN="blocktxn";
 const static std::string allNetMessageTypes[] = {
     NetMsgType::VERSION,
     NetMsgType::VERACK,
+    NetMsgType::SENDDATABLK,
+    NetMsgType::RECEIVEDATABLK,
     NetMsgType::ADDR,
     NetMsgType::INV,
     NetMsgType::GETDATA,

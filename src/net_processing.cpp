@@ -2055,6 +2055,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
     if (strCommand == NetMsgType::VERACK)
     {
+        printf("\nin verack type\n");
         pfrom->SetRecvVersion(std::min(pfrom->nVersion.load(), PROTOCOL_VERSION));
 
         if (!pfrom->fInbound) {
@@ -2087,7 +2088,58 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDCMPCT, fAnnounceUsingCMPCTBLOCK, nCMPCTBLOCKVersion));
         }
         pfrom->fSuccessfullyConnected = true;
+        
+        if (!pfrom->fInbound) {
+            connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDDATABLK));
+        }
+        // if (pfrom->fInbound) {
+        //     std::cout << std::endl << "who am i" << std::endl;
+        //     int nBytes = 0;
+        //     char buffer3[1024];
+        //     nBytes = recv(pfrom->hSocket,buffer3,1024,0);
+        //     std::cout << nBytes << std::endl;
+
+        //     printf("\nI received data from node1\n");
+        //     std::cout << buffer3 << std::endl;
+        // }
         return true;
+    }
+
+    if (strCommand == NetMsgType::SENDDATABLK){
+        //------------------------------
+        std::cout << std::endl << "i am in senddatablk type" << std::endl;
+        int nBytes = 0;
+        int flag = 0;
+        int cnt = 0;
+        char buffer3[1024];
+        char tmp[1024];
+        // memset(buffer3, '\0', 1024);
+
+        while(flag == 0 && cnt<5)
+        {
+            std::cout<<"loop!  1\n";
+            recv(pfrom->hSocket,tmp,1024,0);
+            if(strncmp(tmp,"RDB send start", strlen("RDB send start"))==0 )
+            {
+                flag = 1;
+            }
+            else if(strncmp(tmp, "OpenNetworkConnection", strlen("OpenNetworkConnection")) == 0)
+            {
+                printf("standard connect\n");
+                return true;
+            }
+            std::cout<<tmp;
+            cnt++;
+        }
+
+        nBytes = recv(pfrom->hSocket,buffer3,1024,0);
+        std::cout << nBytes << std::endl;
+
+        printf("I received data from node1\n");
+        std::cout << buffer3 << std::endl;
+
+        return true;
+        //----------------------------------
     }
 
     if (!pfrom->fSuccessfullyConnected) {
