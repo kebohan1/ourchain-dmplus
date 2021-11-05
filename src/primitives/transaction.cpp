@@ -55,9 +55,9 @@ std::string CTxOut::ToString() const
 }
 
 CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), contract(), nLockTime(0) {}
-CMutableTransaction::CMutableTransaction(const CTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion), contract(tx.contract), nLockTime(tx.nLockTime) {}
+// CMutableTransaction::CMutableTransaction(const CTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion), contract(tx.contract), nLockTime(tx.nLockTime) {}
 // CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), contract(), nLockTime(0) {}
-// CMutableTransaction::CMutableTransaction(const CTransaction& tx) : nVersion(tx.nVersion), contract(tx.contract), vin(tx.vin), vout(tx.vout), nLockTime(tx.nLockTime) {}
+CMutableTransaction::CMutableTransaction(const CTransaction& tx) : nVersion(tx.nVersion), contract(tx.contract), vin(tx.vin), vout(tx.vout), nLockTime(tx.nLockTime) {}
 
 
 uint256 CMutableTransaction::GetHash() const
@@ -79,12 +79,12 @@ uint256 CTransaction::ComputeWitnessHash() const
 }
 
 /* For backward compatibility, the hash is initialized to 0. TODO: remove the need for this default constructor entirely. */
-CTransaction::CTransaction() : vin(), vout(), nVersion(CTransaction::CURRENT_VERSION), contract(), nLockTime(0), hash{}, m_witness_hash{} {}
-CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion),  contract(tx.contract),nLockTime(tx.nLockTime), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {}
-CTransaction::CTransaction(CMutableTransaction&& tx) : vin(std::move(tx.vin)), vout(std::move(tx.vout)), nVersion(tx.nVersion),  contract(tx.contract),nLockTime(tx.nLockTime), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {}
-// CTransaction::CTransaction() : nVersion(CTransaction::CURRENT_VERSION), contract(), vin(), vout(), nLockTime(0), hash() {}
-// CTransaction::CTransaction(const CMutableTransaction &tx) : nVersion(tx.nVersion), contract(tx.contract), vin(tx.vin), vout(tx.vout), nLockTime(tx.nLockTime), hash(ComputeHash()) {}
-// CTransaction::CTransaction(CMutableTransaction &&tx) : nVersion(tx.nVersion), contract(tx.contract), vin(std::move(tx.vin)), vout(std::move(tx.vout)), nLockTime(tx.nLockTime), hash(ComputeHash()) {}
+// CTransaction::CTransaction() : vin(), vout(), nVersion(CTransaction::CURRENT_VERSION), contract(), nLockTime(0), hash{}, m_witness_hash{} {}
+// CTransaction::CTransaction(const CMutableTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion),  contract(tx.contract),nLockTime(tx.nLockTime), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {}
+// CTransaction::CTransaction(CMutableTransaction&& tx) : vin(std::move(tx.vin)), vout(std::move(tx.vout)), nVersion(tx.nVersion),  contract(tx.contract),nLockTime(tx.nLockTime), hash{ComputeHash()}, m_witness_hash{ComputeWitnessHash()} {}
+CTransaction::CTransaction() : nVersion(CTransaction::CURRENT_VERSION), contract(), vin(), vout(), nLockTime(0), hash() {}
+CTransaction::CTransaction(const CMutableTransaction &tx) : nVersion(tx.nVersion), contract(tx.contract), vin(tx.vin), vout(tx.vout), nLockTime(tx.nLockTime), hash(ComputeHash()) {}
+CTransaction::CTransaction(CMutableTransaction &&tx) : nVersion(tx.nVersion), contract(tx.contract), vin(std::move(tx.vin)), vout(std::move(tx.vout)), nLockTime(tx.nLockTime), hash(ComputeHash()) {}
 
 CAmount CTransaction::GetValueOut() const
 {

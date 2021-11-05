@@ -241,6 +241,7 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
     const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
 
     s << tx.nVersion;
+    s << tx.contract;
     unsigned char flags = 0;
     
     // Consistency check
@@ -256,7 +257,7 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
         s << vinDummy;
         s << flags;
     }
-     s << tx.contract;
+     
     s << tx.vin;
     s << tx.vout;
     if (flags & 1) {

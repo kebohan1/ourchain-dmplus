@@ -1188,10 +1188,10 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
     // ---- Get IPFS file by IPFShash ----
     block.SetNull();
     GetFromIPFS(block, IPFShash);
-    /* Do not use levelDB ----Hanry 20191209
+    /* Do not use levelDB ----Hanry 20191209*/
     if (!ReadBlockFromDisk(block, blockPos, consensusParams))
         return false;
-    */
+    
     if (block.GetHash() != pindex->GetBlockHash())
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
             pindex->ToString(), pindex->GetBlockPos().ToString());
@@ -3650,30 +3650,30 @@ static FlatFilePos SaveBlockToDisk(const CBlock& block, int nHeight, const CChai
         // author: Hank
         // time  : 2019/8/17
         // cout << "Processing Height: " << nHeight << endl;
-        json::value root;
-        CppRestConstructBlockToJson(block, root);
-        string blockjson = root.serialize();
-        string ResponseJson = AddToIPFS(blockjson);
-        // sometimes this command doesn't work.... Hank 20190817
-        // cout << blockjson << endl;
-        // Only need the hash value from the response json.  That's why I did the following things to pop it. Hank 20190817
-        stringstream_t s;
-        s << ResponseJson;
-        json::value Response = json::value::parse(s);
-        string IPFSHash;
-        IPFSHash = Response["Hash"].serialize();
-        IPFSHash.erase(0, IPFSHash.find_first_not_of("\""));
-        IPFSHash.erase(IPFSHash.find_last_not_of("\"") + 1);
-        //cout << "IPFSHash: " << IPFSHash << endl;
+        // json::value root;
+        // CppRestConstructBlockToJson(block, root);
+        // string blockjson = root.serialize();
+        // string ResponseJson = AddToIPFS(blockjson);
+        // // sometimes this command doesn't work.... Hank 20190817
+        // // cout << blockjson << endl;
+        // // Only need the hash value from the response json.  That's why I did the following things to pop it. Hank 20190817
+        // stringstream_t s;
+        // s << ResponseJson;
+        // json::value Response = json::value::parse(s);
+        // string IPFSHash;
+        // IPFSHash = Response["Hash"].serialize();
+        // IPFSHash.erase(0, IPFSHash.find_first_not_of("\""));
+        // IPFSHash.erase(IPFSHash.find_last_not_of("\"") + 1);
+        // //cout << "IPFSHash: " << IPFSHash << endl;
 
-        // ---- Write IPFS-HASH To Disk ----Hank 20190730
-        WriteIPFSHashToDisk(to_string(nHeight), IPFSHash);
-        /* Do not use levelDB ----Hanry 20191209
+        // // ---- Write IPFS-HASH To Disk ----Hank 20190730
+        // WriteIPFSHashToDisk(to_string(nHeight), IPFSHash);
+        /* Do not use levelDB ----Hanry 20191209*/
         if (!WriteBlockToDisk(block, blockPos, chainparams.MessageStart())) {
             AbortNode("Failed to write block");
             return FlatFilePos();
         }
-        */
+        
     }
     return blockPos;
 }
@@ -3775,6 +3775,9 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         // Ensure that CheckBlock() passes before calling AcceptBlock, as
         // belt-and-suspenders.
         bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus());
+
+        //Check CheckBlock output
+        LogPrintf("[ProcessNewBlock > CheckBlock] output:%d\n",ret);
         if (ret) {
             // Store to disk
             ret = ::ChainstateActive().AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock);
