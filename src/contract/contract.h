@@ -19,6 +19,7 @@ class Contract
 {
 public:
     uint8_t action;                 //!< ACTION_XXX
+    uint8_t system_usage;
     std::string code;               //!< contract code if ACTION_NEW
     uint256 address;            //!< contract address
     std::vector<std::string> args;  //!< passed arguments
