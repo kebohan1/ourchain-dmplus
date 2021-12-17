@@ -18,7 +18,9 @@
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
-
+// #define MINE_MAIN_GENESIS
+// #define MINE_TEST_GENESIS
+// #define MINE_REGTEST_GENESIS
 static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
     CMutableTransaction txNew;
@@ -112,10 +114,33 @@ public:
         m_assumed_blockchain_size = 350;
         m_assumed_chain_state_size = 6;
 
-        genesis = CreateGenesisBlock(1631361006, 345897278, 0x1d00ffff, 1, 50 * COIN);
+        #ifdef MINE_MAIN_GENESIS
+        uint32_t t = time(NULL);
+        fprintf(stderr, "Mining main genesis block...\n\ntime = %u\n", t);
+        for (; ; ++t) {
+            for (uint32_t n = 0; ; ++n) {
+                if ((n & 0xfffff) == 0) fprintf(stderr, "\rnonce = %u", n);
+                genesis = CreateGenesisBlock(t, n, 0x1d00ffff, 1, 50 * COIN);
+                if (CheckProofOfWork(genesis.GetHash(), genesis.nBits, consensus)) {
+                    fprintf(stderr,
+                            "\rnonce = %u\nhash = %s\nhashMerkleRoot = %s\n\n", n,
+                            genesis.GetHash().ToString().c_str(),
+                            genesis.hashMerkleRoot.ToString().c_str());
+                    assert(false);
+                }
+                if (n == 4294967295) break;
+            }
+        }
+        #endif
+
+        // genesis = CreateGenesisBlock(1631361006, 345897278, 0x1d00ffff, 1, 50 * COIN);
+        genesis = CreateGenesisBlock(1639639759, 57248075, 0x1d00ffff, 1, 50 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x00000000a1422e6bacfd997f447c492d47453b1df1fbf7e1f6e5807a89af48b1"));
-        assert(genesis.hashMerkleRoot == uint256S("0xd9f2a49b88a6a667ec31635b1148378d656eab79ba1bd4736cfe51516464980f"));
+        // assert(consensus.hashGenesisBlock == uint256S("0x00000000a1422e6bacfd997f447c492d47453b1df1fbf7e1f6e5807a89af48b1"));
+        assert(consensus.hashGenesisBlock == uint256S("0x00000000454de85904235ed4f24d22128d3d6fbdf74a86b2385ad3a1fe1b9ead"));
+        // assert(genesis.hashMerkleRoot == uint256S("0xd9f2a49b88a6a667ec31635b1148378d656eab79ba1bd4736cfe51516464980f"));
+        assert(genesis.hashMerkleRoot == uint256S("0xaeca09748f19c18e6f4954d674810ae39b888a96a530ffb16206b300a8c10cd3"));
+
 
         // Note that of those which support the service bits prefix, most only support a subset of
         // possible options.
@@ -213,7 +238,7 @@ public:
         consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000007dbe94253893cbd463");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("0x0000000000000037a8cd3e06cd5edbfe9dd1dbcc5dacab279376ef7cfc2b4c75"); //1354312
+        consensus.defaultAssumeValid = uint256S("0xaeca09748f19c18e6f4954d674810ae39b888a96a530ffb16206b300a8c10cd3"); //1354312
 
         pchMessageStart[0] = 0x0b;
         pchMessageStart[1] = 0x11;
@@ -223,12 +248,29 @@ public:
         nPruneAfterHeight = 1000;
         m_assumed_blockchain_size = 30;
         m_assumed_chain_state_size = 2;
-        
-        genesis = CreateGenesisBlock(1631415486, 3173398450, 0x1d00ffff, 1, 50 * COIN);
+        #ifdef MINE_TEST_GENESIS
+        uint32_t t = time(NULL);
+        fprintf(stderr, "Mining test genesis block...\n\ntime = %u\n", t);
+        for (; ; ++t) {
+            for (uint32_t n = 0; ; ++n) {
+                if ((n & 0xfffff) == 0) fprintf(stderr, "\rnonce = %u", n);
+                genesis = CreateGenesisBlock(t, n, 0x1d00ffff, 1, 50 * COIN);
+                if (CheckProofOfWork(genesis.GetHash(), genesis.nBits, consensus)) {
+                    fprintf(stderr,
+                            "\rnonce = %u\nhash = %s\nhashMerkleRoot = %s\n\n", n,
+                            genesis.GetHash().ToString().c_str(),
+                            genesis.hashMerkleRoot.ToString().c_str());
+                    assert(false);
+                }
+                if (n == 4294967295) break;
+            }
+        }
+        #endif
+        genesis = CreateGenesisBlock(1639644132, 2051939625, 0x1d00ffff, 1, 50 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
 
-        assert(consensus.hashGenesisBlock == uint256S("0x000000001fd96ce28d714e73abfe01f57581dc592b0552fb7a0cc36214a210b2"));
-        assert(genesis.hashMerkleRoot == uint256S("0xd9f2a49b88a6a667ec31635b1148378d656eab79ba1bd4736cfe51516464980f"));
+        assert(consensus.hashGenesisBlock == uint256S("0x00000000385537a2554137f3208e81f297fd2274778751fe4029e9bb6250d449"));
+        assert(genesis.hashMerkleRoot == uint256S("0xaeca09748f19c18e6f4954d674810ae39b888a96a530ffb16206b300a8c10cd3"));
 
         vFixedSeeds.clear();
         vSeeds.clear();
@@ -317,12 +359,31 @@ public:
         m_assumed_chain_state_size = 0;
 
         UpdateVersionBitsParametersFromArgs(args);
+        
+        #ifdef MINE_REGTEST_GENESIS
+        uint32_t t = time(NULL);
+        fprintf(stderr, "Mining regtest genesis block...\n\ntime = %u\n", t);
+        for (; ; ++t) {
+            for (uint32_t n = 0; ; ++n) {
+                if ((n & 0xfffff) == 0) fprintf(stderr, "\rnonce = %u", n);
+                genesis = CreateGenesisBlock(t, n, 0x207fffff, 1, 50 * COIN);
+                if (CheckProofOfWork(genesis.GetHash(), genesis.nBits, consensus)) {
+                    fprintf(stderr,
+                            "\rnonce = %u\nhash = %s\nhashMerkleRoot = %s\n\n", n,
+                            genesis.GetHash().ToString().c_str(),
+                            genesis.hashMerkleRoot.ToString().c_str());
+                    assert(false);
+                }
+                if (n == 4294967295) break;
+            }
+        }
+        #endif
 
-        genesis = CreateGenesisBlock(1631427576, 0, 0x207fffff, 1, 50 * COIN);
+        genesis = CreateGenesisBlock(1639718113, 2, 0x207fffff, 1, 50 * COIN);
 
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x4e8030329bcdcade26b72acf8929d020c83abfc031c742292b261605cc234907"));
-        assert(genesis.hashMerkleRoot == uint256S("0xd9f2a49b88a6a667ec31635b1148378d656eab79ba1bd4736cfe51516464980f"));
+        assert(consensus.hashGenesisBlock == uint256S("0x55f60478cc6a9338d05711132e9e827010df4bc84b46ea1de4b0f0e856618564"));
+        assert(genesis.hashMerkleRoot == uint256S("0xaeca09748f19c18e6f4954d674810ae39b888a96a530ffb16206b300a8c10cd3"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.

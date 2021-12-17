@@ -15,11 +15,18 @@ enum contract_action
     ACTION_CALL     = 2,
 };
 
+enum contract_usage
+{
+    USAGE_NONE     = 0,
+    USAGE_SYS      = 1,
+    USAGE_USER     = 2,
+};
+
 class Contract
 {
 public:
     uint8_t action;                 //!< ACTION_XXX
-    uint8_t system_usage;
+    uint8_t usage;
     std::string code;               //!< contract code if ACTION_NEW
     uint256 address;            //!< contract address
     std::vector<std::string> args;  //!< passed arguments
@@ -29,7 +36,7 @@ public:
         SetNull();
     }
 
-    Contract(const Contract &contract) : action(contract.action), code(contract.code), address(contract.address), args(contract.args) {}
+    Contract(const Contract &contract) : action(contract.action),usage(contract.usage), code(contract.code), address(contract.address), args(contract.args) {}
 
     ~Contract()
     {
@@ -41,6 +48,7 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(this->action);
+        READWRITE(this->usage);
         READWRITE(code);
         READWRITE(address);
         READWRITE(args);
@@ -49,6 +57,7 @@ public:
     void SetNull()
     {
         action = 0;
+        usage = 0;
         code.clear();
         address.SetNull();
         args.clear();
