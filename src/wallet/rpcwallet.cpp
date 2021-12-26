@@ -4343,6 +4343,7 @@ static bool ReadFile(const std::string &filename, std::string &buf)
          throw JSONRPCError(RPC_INVALID_PARAMETER, "File does not exist.");
      }
      contract.action = contract_action::ACTION_NEW;
+     contract.usage = contract_usage::USAGE_USER;
      if (request.params.size() > 1) {
          for (unsigned i = 1; i < request.params.size(); i++)
              contract.args.push_back(request.params[i].get_str());
@@ -4413,6 +4414,7 @@ static bool ReadFile(const std::string &filename, std::string &buf)
      // Contract fields
      Contract contract;
      contract.action = contract_action::ACTION_CALL;
+     contract.usage = contract_usage::USAGE_USER;
     //  contract.callee.SetHex(request.params[0].get_str());
     contract.address = uint256S(request.params[0].get_str());
      if (request.params.size() > 1) {
