@@ -67,7 +67,8 @@
         "cinttypes": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "*.dat": "cpp"
+        "*.dat": "cpp",
+        "ourcontract.h": "c"
     },
     "C_Cpp.clang_format_fallbackStyle": "Google",
     "editor.tabSize": 2

@@ -4267,7 +4267,7 @@ UniValue walletcreatefundedpsbt(const JSONRPCRequest& request)
     return result;
 }
 
-static void SendContractTx(CWallet * const pwallet, const Contract *contract, const CTxDestination &address, CTransactionRef& wtxNew, const CCoinControl& coin_control)
+void SendContractTx(CWallet * const pwallet, const Contract *contract, const CTxDestination &address, CTransactionRef& wtxNew, const CCoinControl& coin_control)
  {
     //  CAmount curBalance = pwallet->GetBalance();
     auto locked_chain = pwallet->chain().lock();
@@ -4299,17 +4299,17 @@ static void SendContractTx(CWallet * const pwallet, const Contract *contract, co
  }
 
 //  static bool LoadContractCode(Contract &contract, const std::string &filename)
-static bool ReadFile(const std::string &filename, std::string &buf)
- {
-     std::string line;
-     std::ifstream file(filename);
+// static bool ReadFile(const std::string &filename, std::string &buf)
+//  {
+//      std::string line;
+//      std::ifstream file(filename);
 
-     if (file.is_open() == false) return false;
-    //  while (getline(file, line)) contract.code += (line + "\n");
-    while (getline(file, line)) buf += (line + "\n");
-     file.close();
-     return true;
- }
+//      if (file.is_open() == false) return false;
+//     //  while (getline(file, line)) contract.code += (line + "\n");
+//     while (getline(file, line)) buf += (line + "\n");
+//      file.close();
+//      return true;
+//  }
 
  UniValue deploycontract(const JSONRPCRequest& request)
  {

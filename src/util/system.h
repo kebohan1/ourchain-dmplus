@@ -364,6 +364,14 @@ std::string CopyrightHolders(const std::string& strPrefix);
  */
 int ScheduleBatchPriority();
 
+/**
+ * Function: ReadFile
+ * To read the code or file from disk
+ * 
+ */
+ 
+bool ReadFile(const std::string &filename, std::string &buf);
+
 namespace util {
 
 //! Simplification of std insertion

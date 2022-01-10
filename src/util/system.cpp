@@ -1228,6 +1228,23 @@ int ScheduleBatchPriority()
 #endif
 }
 
+/**
+ * Function: ReadFile
+ * To read the code or file from disk
+ * 
+ */
+bool ReadFile(const std::string &filename, std::string &buf)
+{
+     std::string line;
+     std::ifstream file(filename);
+
+     if (file.is_open() == false) return false;
+    //  while (getline(file, line)) contract.code += (line + "\n");
+    while (getline(file, line)) buf += (line + "\n");
+     file.close();
+     return true;
+}
+
 namespace util {
 #ifdef WIN32
 WinCmdLineArgs::WinCmdLineArgs()

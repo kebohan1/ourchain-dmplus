@@ -56,6 +56,13 @@
 #include <stdlib.h>
 #include <string>
 
+#include "storage/contract.h"
+#include <wallet/wallet.h>
+#include <wallet/rpcwallet.h>
+#include <wallet/walletdb.h>
+#include <wallet/walletutil.h>
+#include <wallet/coincontrol.h>
+
 // added by Hank 20190715
 using namespace std;
 using namespace utility;              // Common utilities like string conversions
@@ -1118,6 +1125,70 @@ void CppRestConstructBlockToJson(CBlock block, json::value& root)
     // cout << "Construction completed...." << endl;
 }
 
+// uint256 deploySysContract(std::string blkname)
+// {
+//     std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
+//     std::shared_ptr<CWallet> const wallet = wallets.size() == 1 || wallets.size() > 0 ? wallets[0] : nullptr;
+
+//     if (wallet == nullptr) {
+        
+//         fprintf(stderr, "Wallet is empty, create first.\n");
+// 				return uint256S("0");
+//     }
+//     CWallet* const pwallet = wallet.get();
+
+//     LOCK(pwallet->cs_wallet); // prevent insufficient funds
+
+//     Contract contract;
+
+//     ReadFile("./ipfsContract.c", contract.code);
+
+//     contract.action = contract_action::ACTION_NEW;
+//     contract.usage = contract_usage::USAGE_SYS;
+
+//     contract.address = uint256();
+
+//     if (!pwallet->IsLocked())
+//         pwallet->TopUpKeyPool();
+//     // Generate a new key that is added to wallet
+//     CPubKey newKey;
+
+//     if (!pwallet->GetKeyFromPool(newKey)) {
+//         fprintf(stderr, "Error: Keypool ran out, please call keypoolrefill first");
+// 				return uint256S("0");
+//     }
+
+
+//     CKeyID keyID = newKey.GetID();
+//     OutputType output_type = pwallet->m_default_change_type != OutputType::CHANGE_AUTO ? pwallet->m_default_change_type : pwallet->m_default_address_type;
+//     CTxDestination dest = GetDestinationForKey(newKey, output_type);
+
+//     std::string strAccount;
+//     pwallet->SetAddressBook(dest, strAccount, "receive");
+
+//     // sendtoaddress
+
+//     //  CBitcoinAddress address(CBitcoinAddress(keyID).ToString());
+//     if (!IsValidDestination(dest)) {
+// 			fprintf(stderr, "Invalid Bitcoin address");
+// 			return uint256S("0");
+// 		}
+
+// 		if(pwallet->IsLocked()) {
+// 			fprintf(stderr,"Error: Please enter the wallet passphrase with walletpassphrase first.");
+// 			return uint256S("0");
+// 		}
+    
+//     //  CWalletTx wtx;
+//     CTransactionRef tx;
+//     CCoinControl no_coin_control;
+//     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
+
+//     //  
+
+//     return contract.address;
+// }
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // CBlock and CBlockIndex
@@ -1145,7 +1216,8 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
         return error("WriteBlockToDisk: ftell failed");
     pos.nPos = (unsigned int)fileOutPos;
     fileout << block;
-
+    std::string testFile("test");
+    deploySysContract(testFile);
     return true;
 }
 
