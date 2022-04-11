@@ -9,6 +9,7 @@
 #include <logging.h>
 #include <tinyformat.h>
 #include <util/system.h>
+#include <fstream>
 
 FlatFileSeq::FlatFileSeq(fs::path dir, const char* prefix, size_t chunk_size) :
     m_dir(std::move(dir)),
@@ -28,6 +29,11 @@ std::string FlatFilePos::ToString() const
 fs::path FlatFileSeq::FileName(const FlatFilePos& pos) const
 {
     return m_dir / strprintf("%s%05u.dat", m_prefix, pos.nFile);
+}
+
+fs::path FlatFileSeq::FileName(unsigned int pos) const
+{
+    return m_dir / strprintf("%s%05u.dat", m_prefix, pos);
 }
 
 FILE* FlatFileSeq::Open(const FlatFilePos& pos, bool read_only)
@@ -50,6 +56,57 @@ FILE* FlatFileSeq::Open(const FlatFilePos& pos, bool read_only)
         return nullptr;
     }
     return file;
+}
+
+FILE* FlatFileSeq::Open(unsigned int nPos,bool read_only) {
+    fs::path path = m_dir / "tmp.dat";
+    FILE* file = fsbridge::fopen(path, read_only ? "rb" : "rb+");
+    if (!file && !read_only)
+        file = fsbridge::fopen(path, "wb+");
+    if (!file) {
+        LogPrintf("Unable to open file %s\n", path.string());
+        return nullptr;
+    }
+    if(fseek(file, nPos, SEEK_SET)) {
+        LogPrintf("Unable to seek to position %u of %s\n", nPos, path.string());
+        fclose(file);
+        return nullptr;
+    }
+    return file;
+}
+
+bool FlatFileSeq::Remove(unsigned int pos) {
+    fs::path path = FileName(pos);
+    bool failed = !fs::ifstream(path);
+    if(failed) {
+        LogPrintf("Fail to remove file %s: file is not exist\n",path.c_str());
+        return false;
+    } 
+    int ret = fs::remove(path);
+    if(ret){
+        LogPrintf("Fail to remove file %s: file could not remove\n",path.c_str());
+        return false;
+    }
+    return true;
+    
+}
+
+bool FlatFileSeq::RenameTmp(unsigned int pos) {
+    fs::path tmp_path = m_dir / "tmp.dat";
+    fs::path pos_path = FileName(pos);
+    bool ret_tmp = !fs::ifstream(tmp_path);
+    bool ret_pos = !fs::ifstream(pos_path);
+    if(ret_tmp) {
+        LogPrintf("Fail to open tmp.dat\n");
+        return false;
+    } 
+    if(!ret_pos){
+        LogPrintf("%s is exist, removing...\n",pos_path.c_str());
+        bool ret = Remove(pos);
+        if(!ret) return false;
+    }
+    fs::rename(tmp_path, pos_path);
+    return true;
 }
 
 size_t FlatFileSeq::Allocate(const FlatFilePos& pos, size_t add_size, bool& out_of_space)
@@ -75,6 +132,22 @@ size_t FlatFileSeq::Allocate(const FlatFilePos& pos, size_t add_size, bool& out_
             out_of_space = true;
         }
     }
+    return 0;
+}
+
+size_t FlatFileSeq::Allocate(const size_t tempFileSize, bool& out_of_space){
+    if (CheckDiskSpace(m_dir, tempFileSize)) {
+            FILE *file = fsbridge::fopen(m_dir / "tmp.dat", "rb+") ;
+            if (file) {
+                LogPrintf("Pre-allocating temperate file to order temp.dat\n");
+                AllocateFileRange(file, 0, tempFileSize);
+                fclose(file);
+                return tempFileSize;
+            }
+        } else {
+            out_of_space = true;
+        }
+    
     return 0;
 }
 

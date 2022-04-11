@@ -68,9 +68,15 @@ public:
 
     /** Get the name of the file at the given position. */
     fs::path FileName(const FlatFilePos& pos) const;
+    fs::path FileName(unsigned int pos) const;
+
 
     /** Open a handle to the file at the given position. */
     FILE* Open(const FlatFilePos& pos, bool read_only = false);
+    FILE* Open(unsigned int pos,bool read_only = false);
+
+    bool Remove(unsigned int pos);
+    bool RenameTmp(unsigned int pos);
 
     /**
      * Allocate additional space in a file after the given starting position. The amount allocated
@@ -82,6 +88,8 @@ public:
      * @return The number of bytes successfully allocated.
      */
     size_t Allocate(const FlatFilePos& pos, size_t add_size, bool& out_of_space);
+    size_t Allocate(const size_t allocateTempFile, bool& out_of_space);
+
 
     /**
      * Commit a file to disk, and optionally truncate off extra pre-allocated bytes if final.

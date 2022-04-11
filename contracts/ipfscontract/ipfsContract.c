@@ -63,6 +63,7 @@ typedef struct state {
     unsigned int allocated_account_array_size;
     unsigned int num_allowance;
     unsigned int allocated_allowance_array_size;
+    unsigned int size_self_state;
 } ContractState;
 
 /* optional APIs */

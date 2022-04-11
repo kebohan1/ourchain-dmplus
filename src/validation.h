@@ -234,6 +234,8 @@ bool ProcessNewBlockHeaders(const std::vector<CBlockHeader>& block, CValidationS
 
 /** Open a block file (blk?????.dat) */
 FILE* OpenBlockFile(const FlatFilePos &pos, bool fReadOnly = false);
+/** Open a temp blk file*/
+FILE* OpenBlockFile(unsigned int nPos, bool fReadOnly = false) ;
 /** Translation to a filesystem path */
 fs::path GetBlockPosFilename(const FlatFilePos &pos);
 /** Import blocks from an external file */

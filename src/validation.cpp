@@ -1217,7 +1217,32 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     pos.nPos = (unsigned int)fileOutPos;
     fileout << block;
     std::string testFile("test");
-    deploySysContract(testFile);
+    // deploySysContract(testFile);
+    return true;
+}
+
+static bool WriteBlockToTempBlk(const CBlock& block, unsigned int& pos, const CMessageHeader::MessageStartChars& messageStart)
+{
+    // // Add block to IPFS
+    // string blockinfo = "";
+    // blockinfo.append(block.ToString());
+    // AddToIPFS(blockinfo);
+
+    // Open history file to append
+    CAutoFile fileout(OpenBlockFile(pos), SER_DISK, CLIENT_VERSION);
+    if (fileout.IsNull())
+        return error("WriteBlockToDisk: OpenBlockFile failed");
+
+    // Write index header
+    unsigned int nSize = GetSerializeSize(block, fileout.GetVersion());
+    fileout << messageStart << nSize;
+
+    // Write block
+    long fileOutPos = ftell(fileout.Get());
+    if (fileOutPos < 0)
+        return error("WriteBlockToDisk: ftell failed");
+    pos = (unsigned int)fileOutPos;
+    fileout << block;
     return true;
 }
 
@@ -3254,6 +3279,45 @@ static bool FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigned int n
         vinfoBlockFile.resize(nFile + 1);
     }
 
+    // sort the blk.dat --20220316
+    if(vinfoBlockFile[nFile].nSize + nAddSize >= MAX_BLOCKFILE_SIZE) {
+        LogPrintf("Blk is full! Reoder the block in nFile:%i\n",nFile);
+        std::vector<std::pair<int, CBlockIndex*>> vSortedByHeight;
+        vSortedByHeight.reserve(mapBlockIndex.size());
+        for (const std::pair<const uint256, CBlockIndex*>& item : mapBlockIndex) {
+            CBlockIndex* pindex = item.second;
+            vSortedByHeight.push_back(std::make_pair(pindex->nHeight, pindex));
+        }
+        sort(vSortedByHeight.begin(), vSortedByHeight.end());
+
+        auto sliceSorted = std::vector<std::pair<int, CBlockIndex*>>(vSortedByHeight.begin() + vinfoBlockFile[nFile].nHeightFirst - 1, vSortedByHeight.end());
+        bool temp_out_of_space;
+        const CChainParams& chainparams = Params();
+        unsigned int init_pos = 0;
+
+        BlockFileSeq().Allocate(vinfoBlockFile[nFile].nSize, temp_out_of_space);
+        
+        if (temp_out_of_space) {
+            return AbortNode("Disk space is low!", _("Error: Disk space is low!"));
+        }
+        for(auto &item : sliceSorted) {
+            CBlockIndex* pindex = item.second;
+            CBlock pblock;
+            unsigned int nBlockSize = ::GetSerializeSize(pblock, CLIENT_VERSION);
+
+            ReadBlockFromDisk(pblock,pindex,chainparams.GetConsensus());
+            WriteBlockToTempBlk(pblock,init_pos,chainparams.MessageStart());
+            pindex->nDataPos = init_pos;
+            init_pos = nBlockSize + init_pos;
+        }
+
+        LogPrintf("Tmp.blk is created. Start replacement.\n");
+        BlockFileSeq().Remove(nFile);
+        BlockFileSeq().RenameTmp(nFile);
+
+    }
+    
+    //sorted end
     if (!fKnown) {
         while (vinfoBlockFile[nFile].nSize + nAddSize >= MAX_BLOCKFILE_SIZE) {
             nFile++;
@@ -4072,6 +4136,11 @@ static FlatFileSeq UndoFileSeq()
 FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly)
 {
     return BlockFileSeq().Open(pos, fReadOnly);
+}
+
+//Overloading the temp file
+FILE* OpenBlockFile(unsigned int nPos, bool fReadOnly) {
+    return BlockFileSeq().Open(nPos, fReadOnly);
 }
 
 /** Open an undo file (rev?????.dat) */

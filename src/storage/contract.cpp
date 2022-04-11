@@ -124,7 +124,7 @@ CIPFSNode getIPFSNode(std::string hash) {
 bool selectIPFSDeploy(std::vector<CIPFSNode> vIPFSList) {
   
   //sort ipfsList with merge sort
-  IPFSMergeSort(vIPFSList, 0, vIPFSList.size() - 1);
+  // IPFSMergeSort(vIPFSList, 0, vIPFSList.size() - 1);
   
   //put selected ipfs node into a vector
   std::vector<CIPFSNode> selectedIPFSList;
@@ -136,6 +136,7 @@ bool selectIPFSDeploy(std::vector<CIPFSNode> vIPFSList) {
   } 
 
   //TODO: call contract to deploy func
+  return true;
 }
 
 bool processStorageContract(Contract contract){
@@ -164,6 +165,6 @@ bool processStorageContract(Contract contract){
 
   }
 
-  
+  return true;
 }
 

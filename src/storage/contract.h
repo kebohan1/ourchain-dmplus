@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string> 
 #include <core_io.h>
+#include <uint256.h>
 
 class CIPFSNode {
 
@@ -20,35 +21,35 @@ public:
   
 };
 
-void mergeIPFSList(std::vector<CIPFSNode> &vIPFSList, int left, int right, int mid) {
-  std::vector<CIPFSNode> vIPFSLeft(vIPFSList.begin()+left,vIPFSList.begin()+mid);
-  std::vector<CIPFSNode> vIPFSRight(vIPFSList.begin()+mid+1,vIPFSList.begin()+right);
+// void mergeIPFSList(std::vector<CIPFSNode> &vIPFSList, int left, int right, int mid) {
+//   std::vector<CIPFSNode> vIPFSLeft(vIPFSList.begin()+left,vIPFSList.begin()+mid);
+//   std::vector<CIPFSNode> vIPFSRight(vIPFSList.begin()+mid+1,vIPFSList.begin()+right);
 
-  int nIdxLeft = 0, nIdxRight = 0, nIdxIPFSList;
-  while(nIdxLeft<vIPFSLeft.size()&&nIdxRight<vIPFSRight.size()){
-    if(vIPFSLeft[nIdxLeft].getRepuatation()<vIPFSRight[nIdxRight].getRepuatation()) {
-      vIPFSList[nIdxIPFSList++] = vIPFSLeft[nIdxLeft++];
-    } else {
-      vIPFSList[nIdxIPFSList++] = vIPFSLeft[nIdxRight++];
-    }
-  }
+//   int nIdxLeft = 0, nIdxRight = 0, nIdxIPFSList;
+//   while(nIdxLeft<vIPFSLeft.size()&&nIdxRight<vIPFSRight.size()){
+//     if(vIPFSLeft[nIdxLeft].getRepuatation()<vIPFSRight[nIdxRight].getRepuatation()) {
+//       vIPFSList[nIdxIPFSList++] = vIPFSLeft[nIdxLeft++];
+//     } else {
+//       vIPFSList[nIdxIPFSList++] = vIPFSLeft[nIdxRight++];
+//     }
+//   }
 
-  while(nIdxLeft<vIPFSLeft.size()) {
-    vIPFSList[nIdxIPFSList++] = vIPFSLeft[nIdxLeft++];
-  }
+//   while(nIdxLeft<vIPFSLeft.size()) {
+//     vIPFSList[nIdxIPFSList++] = vIPFSLeft[nIdxLeft++];
+//   }
 
-  while(nIdxRight<vIPFSRight.size()) {
-    vIPFSList[nIdxIPFSList++] = vIPFSLeft[nIdxRight++];
-  }
+//   while(nIdxRight<vIPFSRight.size()) {
+//     vIPFSList[nIdxIPFSList++] = vIPFSLeft[nIdxRight++];
+//   }
 
-}
+// }
 
-void IPFSMergeSort(std::vector<CIPFSNode> &vIPFSNode, int left, int right) {
-  if(left >= right) return;
-  int mid = (left + right) / 2;
-  IPFSMergeSort(vIPFSNode, left, right);
-  IPFSMergeSort(vIPFSNode, left + 1, right);
-  mergeIPFSList(vIPFSNode, left, mid, right);
-}
+// void IPFSMergeSort(std::vector<CIPFSNode> &vIPFSNode, int left, int right) {
+//   if(left >= right) return;
+//   int mid = (left + right) / 2;
+//   IPFSMergeSort(vIPFSNode, left, right);
+//   IPFSMergeSort(vIPFSNode, left + 1, right);
+//   mergeIPFSList(vIPFSNode, left, mid, right);
+// }
 
 uint256 deploySysContract(std::string blkname);

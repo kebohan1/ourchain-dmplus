@@ -37,8 +37,7 @@ const static fs::path &GetContractsDir()
     return contracts_dir;
 }
 
-static int call_mkdll(const uint256& contract)
-{
+static int call_mkdll(const uint256& contract, std::string flags){
     int pid, status;
 
     pid = fork();
@@ -50,11 +49,21 @@ static int call_mkdll(const uint256& contract)
         dup2(fd, STDERR_FILENO);
         close(fd);
         std::cout<<"fork 0 fd open done." << std::endl;
-        execlp("ourcontract-mkdll",
+        if(flags.empty()) {
+            execlp("ourcontract-mkdll",
                "ourcontract-mkdll",
                GetContractsDir().string().c_str(),
                contract.GetHex().c_str(),
                NULL);
+        } else {
+            execlp("ourcontract-mkdll",
+               "ourcontract-mkdll",
+               GetContractsDir().string().c_str(),
+               contract.GetHex().c_str(),
+               flags.c_str(),
+               NULL);
+        }
+        
         exit(EXIT_FAILURE);
     }
 
@@ -173,9 +182,11 @@ bool ProcessContract(const Contract &contract, std::vector<CTxOut> &vTxOut, std:
         contract_code.write(contract.code.c_str(), contract.code.size());
         contract_code.close();
 
-        if (call_mkdll(contract.address) < 0) {
+        int ret = contract.usage == USAGE_SYS ? call_mkdll(contract.address,"-lpthread -lcrypto") : call_mkdll(contract.address,"");
+
+        if (ret < 0) {
             /* TODO: clean up files */
-            return false;
+            return false; 
         }
 
         if (call_rt(contract.address, contract.args, vTxOut, state, nextContract) < 0) {
