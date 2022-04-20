@@ -33,6 +33,7 @@
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 #include <wallet/walletutil.h>
+#include <storage/ipfs.h>
 
 #include <stdint.h>
 #include <fstream>
@@ -4394,6 +4395,8 @@ void SendContractTx(CWallet * const pwallet, const Contract *contract, const CTx
      if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
          return NullUniValue;
      }
+     std::cout << "JSON URI:" << request.URI << std::endl;
+    
 
      if (request.fHelp || request.params.size() < 2) {
          throw std::runtime_error(
@@ -4450,6 +4453,22 @@ void SendContractTx(CWallet * const pwallet, const Contract *contract, const CTx
     CTransactionRef tx;
      CCoinControl no_coin_control;
      SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
+    if(contract.args[0] == "user_sign_up") {
+      //  if(contract.args[2])
+      IpfsStorageManager imanager;
+      imanager.init();
+      if(imanager.contractHash.IsNull() ) {
+        
+        
+        imanager.contractHash = contract.address;
+        
+      }
+      std::cout << contract.args[1] <<std::endl;
+      imanager.RegisterKey = contract.args[1];
+
+      imanager.FlushDisk();
+      
+    }
 
      return tx->GetHash().GetHex();
  }

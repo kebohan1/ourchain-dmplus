@@ -238,6 +238,13 @@ extern const char *GETBLOCKTXN;
  * @since protocol version 70014 as described by BIP 152
  */
 extern const char *BLOCKTXN;
+/**
+ * Contains a CStorageMessage
+ * Peer only need to response "storageack" message.
+ * 
+ */
+extern const char *STORAGEREQEUST;
+extern const char *STORAGEACK;
 };
 
 /* Get a vector of all valid message types (see above) */

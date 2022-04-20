@@ -28,6 +28,7 @@
 #include <util/system.h>
 #include <util/strencodings.h>
 #include <util/validation.h>
+#include <storage/ipfs.h>
 
 #include <memory>
 
@@ -3145,6 +3146,18 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         return true;
     }
 
+    if (strCommand == NetMsgType::STORAGEREQEUST) {
+      LOCK(cs_main);
+      std::vector<CStorageMessage> message;
+      uint256 hash;
+      vRecv >> message ;
+      std::cout << "STORAGEREQUEST recv cmp"<<std::endl;
+      IpfsStorageManager imanager;
+      imanager.init();
+      imanager.receiveMessage(message);
+      imanager.FlushDisk();
+      
+    }
     if (strCommand == NetMsgType::NOTFOUND) {
         // We do not care about the NOTFOUND message, but logging an Unknown Command
         // message would be undesirable as we transmit it ourselves.
@@ -3243,6 +3256,7 @@ bool PeerLogicValidation::ProcessMessages(CNode* pfrom, std::atomic<bool>& inter
     // Scan for message start
     if (memcmp(msg.hdr.pchMessageStart, chainparams.MessageStart(), CMessageHeader::MESSAGE_START_SIZE) != 0) {
         LogPrint(BCLog::NET, "PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n", SanitizeString(msg.hdr.GetCommand()), pfrom->GetId());
+
         pfrom->fDisconnect = true;
         return false;
     }
@@ -3252,10 +3266,10 @@ bool PeerLogicValidation::ProcessMessages(CNode* pfrom, std::atomic<bool>& inter
     if (!hdr.IsValid(chainparams.MessageStart()))
     {
         LogPrint(BCLog::NET, "PROCESSMESSAGE: ERRORS IN HEADER %s peer=%d\n", SanitizeString(hdr.GetCommand()), pfrom->GetId());
+        
         return fMoreWork;
     }
     std::string strCommand = hdr.GetCommand();
-
     // Message size
     unsigned int nMessageSize = hdr.nMessageSize;
 
@@ -4007,6 +4021,20 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                      (currentFilter < 3 * pto->lastSentFeeFilter / 4 || currentFilter > 4 * pto->lastSentFeeFilter / 3)) {
                 pto->nextSendTimeFeeFilter = timeNow + GetRandInt(MAX_FEEFILTER_CHANGE_DELAY) * 1000000;
             }
+        }
+
+        //
+        // Message: StorageRequest
+        //
+        // std::cout << "StorageSize: " << pto->vStorageMessage.size() <<std::endl;
+        if(pto->vStorageMessage.size() != 0) {
+            std::cout << "StorageSize: " << pto->vStorageMessage.size() <<",Send msg request to peer=" <<pto->GetId() <<std::endl;
+            // LogPrint(BCLog::NET, "Send msg request to peer=%d \n", pto->GetId());
+            // for(auto msg : pto->vStorageMessage) {
+                connman->PushMessage(pto, msgMaker.Make(NetMsgType::STORAGEREQEUST, pto->vStorageMessage));
+            // }
+            std::cout << "Storage Request end"  <<std::endl;
+            pto->vStorageMessage.clear();
         }
     }
     return true;

@@ -11,7 +11,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/bitcoind",
             // "args": ["-server", "-listen", "-port=17592", "-rpcuser=rpcB", "-rpcpassword=pass", "-deprecatedrpc=accounts", "-rpcport=16592", "-datadir=$HOME/regtest/B/", "-connect=localhost:17591", "-regtest", "-pid=$HOME/regtest/B/.pid", "-daemon", "-debug"],
-            "args": ["-regtest"],
+            "args": ["--regtest"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

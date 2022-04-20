@@ -767,6 +767,18 @@ const fs::path &GetDataDir(bool fNetSpecific)
     return path;
 }
 
+const fs::path GetCPORDir() {
+    LOCK(csPathCached);
+
+    fs::path path = GetDataDir();
+
+    path /= "cpor";
+
+    fs::create_directory(path);
+
+    return path;
+}
+
 void ClearDatadirCache()
 {
     LOCK(csPathCached);

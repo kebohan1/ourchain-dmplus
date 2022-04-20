@@ -2657,6 +2657,7 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
     size_t nMessageSize = msg.data.size();
     size_t nTotalSize = nMessageSize + CMessageHeader::HEADER_SIZE;
     LogPrint(BCLog::NET, "sending %s (%d bytes) peer=%d\n",  SanitizeString(msg.command.c_str()), nMessageSize, pnode->GetId());
+    // LogPrintf("sending %s (%d bytes) peer=%d\n",  SanitizeString(msg.command.c_str()), nMessageSize, pnode->GetId());
 
     std::vector<unsigned char> serializedHeader;
     serializedHeader.reserve(CMessageHeader::HEADER_SIZE);
@@ -2700,6 +2701,20 @@ bool CConnman::ForNode(NodeId id, std::function<bool(CNode* pnode)> func)
         }
     }
     return found != nullptr && NodeFullyConnected(found) && func(found);
+}
+
+bool CConnman::ForNodeMsg(NodeId id, CStorageMessage& msg) {
+    CNode* found = nullptr;
+    LOCK(cs_vNodes);
+    for (auto&& pnode : vNodes) {
+        if(pnode->GetId() == id) {
+            found = pnode;
+            std::cout << "Find peer:" << found->GetId() << std::endl;
+            found->PushStorageMessage(msg);
+            break;
+        }
+    }
+    return found != nullptr ;
 }
 
 int64_t CConnman::PoissonNextSendInbound(int64_t now, int average_interval_seconds)

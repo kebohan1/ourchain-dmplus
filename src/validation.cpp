@@ -57,6 +57,7 @@
 #include <string>
 
 #include "storage/contract.h"
+#include <storage/ipfs.h>
 #include <wallet/wallet.h>
 #include <wallet/rpcwallet.h>
 #include <wallet/walletdb.h>
@@ -147,6 +148,9 @@ CTxMemPool mempool(&feeEstimator);
 
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
+
+/** Cold and Hot block manager */
+
 
 // Internal stuff
 namespace {
@@ -929,201 +933,201 @@ static string ReadIPFSHashFromDisk(string pindex)
 
     return IPFSHash;
 }
-//////////////////////////////////////////////////////////////////////////////
-//
-// ipfs connection functions
-// author: Hank
-// time  : 2019/06/12
-//
+// //////////////////////////////////////////////////////////////////////////////
+// //
+// // ipfs connection functions
+// // author: Hank
+// // time  : 2019/06/12
+// //
 
-static void GetFromIPFS(CBlock& block, string str)
-{
-    // ---- change api from /object/get to /cat ---- Hank 20190902
-    string request_uri = "/api/v0/cat?arg=" + str + "&encoding=json";
-    http_client client(U("http://127.0.0.1:5001"));
-    http_request request(methods::POST);
-    // request.set_request_uri("/api/v0/object/get?arg=QmaaqrHyAQm7gALkRW8DcfGX3u8q9rWKnxEMmf7m9z515w&encoding=json");
-    request.set_request_uri(request_uri);
-    pplx::task<http_response> responses = client.request(request);
-    pplx::task<string> responseStr = responses.get().extract_string();
-    cout << "Response json:\n" << responseStr.get() << endl;
+// static void GetFromIPFS(CBlock& block, string str)
+// {
+//     // ---- change api from /object/get to /cat ---- Hank 20190902
+//     string request_uri = "/api/v0/cat?arg=" + str + "&encoding=json";
+//     http_client client(U("http://127.0.0.1:5001"));
+//     http_request request(methods::POST);
+//     // request.set_request_uri("/api/v0/object/get?arg=QmaaqrHyAQm7gALkRW8DcfGX3u8q9rWKnxEMmf7m9z515w&encoding=json");
+//     request.set_request_uri(request_uri);
+//     pplx::task<http_response> responses = client.request(request);
+//     pplx::task<string> responseStr = responses.get().extract_string();
+//     cout << "Response json:\n" << responseStr.get() << endl;
 
-    //---- unserialize json string to the original CBlock data structure ---- Hank 20190902
-    // CBlock block_json;    
-    stringstream_t s;
-    s << responseStr.get();
-    json::value Response = json::value::parse(s);
+//     //---- unserialize json string to the original CBlock data structure ---- Hank 20190902
+//     // CBlock block_json;    
+//     stringstream_t s;
+//     s << responseStr.get();
+//     json::value Response = json::value::parse(s);
 
-    string temp = "";
-    string blockHex = Response.serialize();
-    // cout << "blockHex:\n" << blockHex << endl;
+//     string temp = "";
+//     string blockHex = Response.serialize();
+//     // cout << "blockHex:\n" << blockHex << endl;
 
-    block.nVersion = atoi(Response["nVersion"].serialize());
-    // cout << "nVersion: " << atoi(Response["nVersion"].serialize()) << endl;
+//     block.nVersion = atoi(Response["nVersion"].serialize());
+//     // cout << "nVersion: " << atoi(Response["nVersion"].serialize()) << endl;
     
-    temp = Response["hashMerkleRoot"].serialize();
-    temp.erase(0,temp.find_first_not_of("\""));
-    temp.erase(temp.find_last_not_of("\"")+1); 
-    block.hashMerkleRoot = uint256S(temp);
-    // cout << "hashMerkleRoot: " << Response["hashMerkleRoot"].serialize() << endl;
+//     temp = Response["hashMerkleRoot"].serialize();
+//     temp.erase(0,temp.find_first_not_of("\""));
+//     temp.erase(temp.find_last_not_of("\"")+1); 
+//     block.hashMerkleRoot = uint256S(temp);
+//     // cout << "hashMerkleRoot: " << Response["hashMerkleRoot"].serialize() << endl;
 
-    temp = Response["hashPrevBlock"].serialize();
-    temp.erase(0,temp.find_first_not_of("\""));
-    temp.erase(temp.find_last_not_of("\"")+1); 
-    block.hashPrevBlock = uint256S(temp);    
-    // cout << "hashPrevBlock: " << Response["hashPrevBlock"].serialize() << endl;
+//     temp = Response["hashPrevBlock"].serialize();
+//     temp.erase(0,temp.find_first_not_of("\""));
+//     temp.erase(temp.find_last_not_of("\"")+1); 
+//     block.hashPrevBlock = uint256S(temp);    
+//     // cout << "hashPrevBlock: " << Response["hashPrevBlock"].serialize() << endl;
 
-    block.nTime = atoi(Response["nTime"].serialize());
-    // cout << "nTime: " << Response["nTime"].serialize() << endl;
-    block.nBits = atoi(Response["nBits"].serialize());
-    // cout << "nBits: " << Response["nBits"].serialize() << endl;
-    block.nNonce = atoi(Response["nNonce"].serialize());
-    // cout << "nNonce: " << Response["nNonce"].serialize() << endl;
+//     block.nTime = atoi(Response["nTime"].serialize());
+//     // cout << "nTime: " << Response["nTime"].serialize() << endl;
+//     block.nBits = atoi(Response["nBits"].serialize());
+//     // cout << "nBits: " << Response["nBits"].serialize() << endl;
+//     block.nNonce = atoi(Response["nNonce"].serialize());
+//     // cout << "nNonce: " << Response["nNonce"].serialize() << endl;
     
-    for(int i =0; i < atoi(Response["vtx"]["size"].serialize()); i++){
-        string txHex = Response["vtx"]["Txs"][i].serialize();
-        txHex.erase(0,txHex.find_first_not_of("\""));
-        txHex.erase(txHex.find_last_not_of("\"")+1);    
-        // cout << "txHex: " << txHex << endl;   
-        CMutableTransaction Mtx{};
-        DecodeHexTx(Mtx,txHex,true);
-        block.vtx.push_back(MakeTransactionRef(std::move(Mtx)));
-    }      
-    // CTransaction finaltx = CTransaction(Mtx);
-    // cout << "finaltx:\n" << finaltx.ToString() << endl;
-    // cout << block.ToString() << endl;
-}
+//     for(int i =0; i < atoi(Response["vtx"]["size"].serialize()); i++){
+//         string txHex = Response["vtx"]["Txs"][i].serialize();
+//         txHex.erase(0,txHex.find_first_not_of("\""));
+//         txHex.erase(txHex.find_last_not_of("\"")+1);    
+//         // cout << "txHex: " << txHex << endl;   
+//         CMutableTransaction Mtx{};
+//         DecodeHexTx(Mtx,txHex,true);
+//         block.vtx.push_back(MakeTransactionRef(std::move(Mtx)));
+//     }      
+//     // CTransaction finaltx = CTransaction(Mtx);
+//     // cout << "finaltx:\n" << finaltx.ToString() << endl;
+//     // cout << block.ToString() << endl;
+// }
 
-static string AddToIPFS(string str)
-{
-    http_client client(U("http://127.0.0.1:5001/api/v0/add"));
-    http_request request(methods::POST);
+// static string AddToIPFS(string str)
+// {
+//     http_client client(U("http://127.0.0.1:5001/api/v0/add"));
+//     http_request request(methods::POST);
 
-    string textBoundary = "--FORMBOUNDARY--";
-    string textBody = "";
-    textBody += "--" + textBoundary + "\r\n";
-    textBody += "Content-Disposition:form-data;name=path\r\n";
-    textBody += "\n" + str + "\r\n";
-    textBody += "--" + textBoundary + "--\r\n";
+//     string textBoundary = "--FORMBOUNDARY--";
+//     string textBody = "";
+//     textBody += "--" + textBoundary + "\r\n";
+//     textBody += "Content-Disposition:form-data;name=path\r\n";
+//     textBody += "\n" + str + "\r\n";
+//     textBody += "--" + textBoundary + "--\r\n";
 
-    request.headers().set_content_type("multipart/form-data;boundary=--FORMBOUNDARY--");
-    request.headers().set_content_length(textBody.length());
-    request.set_body(textBody);
-    // cout << postParameters << endl;
-    pplx::task<http_response> responses = client.request(request);
-    // cout << "responses.get() \n" << responses.get().to_string();
+//     request.headers().set_content_type("multipart/form-data;boundary=--FORMBOUNDARY--");
+//     request.headers().set_content_length(textBody.length());
+//     request.set_body(textBody);
+//     // cout << postParameters << endl;
+//     pplx::task<http_response> responses = client.request(request);
+//     // cout << "responses.get() \n" << responses.get().to_string();
 
-    pplx::task<string> s = responses.get().extract_string();
+//     pplx::task<string> s = responses.get().extract_string();
 
-    // cout << "responses body \n" << s.get() << endl;
+//     // cout << "responses body \n" << s.get() << endl;
 
-    //pplx::task<web::json::value> s1 = responses.get().extract_json();
-    //s1.get().object().to_string();
-    //cout << "responses get().object().to_string() \n" << s1.get().object() << endl;
+//     //pplx::task<web::json::value> s1 = responses.get().extract_json();
+//     //s1.get().object().to_string();
+//     //cout << "responses get().object().to_string() \n" << s1.get().object() << endl;
 
-    // cout << "responses body \n" << s.get() << endl;
-    return s.get();
-}
-//////////////////////////////////////////////////////////////////////////////
-// Author : Hank
-// Date : 20190817
-// Using Cpprest construct the block json
+//     // cout << "responses body \n" << s.get() << endl;
+//     return s.get();
+// }
+// //////////////////////////////////////////////////////////////////////////////
+// // Author : Hank
+// // Date : 20190817
+// // Using Cpprest construct the block json
 
-void CppRestProccessVoutToJson(CTxOut tx_Out, int counter, json::value& Vout)
-{
-    string test = HexStr(tx_Out.scriptPubKey);
-    string formatTest = FormatScript(tx_Out.scriptPubKey);
-    //CTxOut testOut = ToByteVector(test);
-    CScript scriptPub = ParseScript(formatTest);
-    Vout["CTxOut"][counter]["nValue"] = json::value::number(tx_Out.nValue);
-    Vout["CTxOut"][counter]["ScriptPubkey"] = json::value::string(HexStr(tx_Out.scriptPubKey));
-}
+// void CppRestProccessVoutToJson(CTxOut tx_Out, int counter, json::value& Vout)
+// {
+//     string test = HexStr(tx_Out.scriptPubKey);
+//     string formatTest = FormatScript(tx_Out.scriptPubKey);
+//     //CTxOut testOut = ToByteVector(test);
+//     CScript scriptPub = ParseScript(formatTest);
+//     Vout["CTxOut"][counter]["nValue"] = json::value::number(tx_Out.nValue);
+//     Vout["CTxOut"][counter]["ScriptPubkey"] = json::value::string(HexStr(tx_Out.scriptPubKey));
+// }
 
-void CppRestProccessScriptWitnessToJson(CScriptWitness scriptWitness, json::value& CScriptWitness)
-{
-    //cout << "for loop of scriptwitness..." << endl;
-    for (unsigned int i = 0; i < scriptWitness.stack.size(); i++) {
-        // There's nothing show up, so I tried this to see what's going on.
-        //cout << "CScriptWitness: " << HexStr(scriptWitness.stack[i]) << endl;
-        CScriptWitness[i] = json::value::string(HexStr(scriptWitness.stack[i]));
-    }
-}
+// void CppRestProccessScriptWitnessToJson(CScriptWitness scriptWitness, json::value& CScriptWitness)
+// {
+//     //cout << "for loop of scriptwitness..." << endl;
+//     for (unsigned int i = 0; i < scriptWitness.stack.size(); i++) {
+//         // There's nothing show up, so I tried this to see what's going on.
+//         //cout << "CScriptWitness: " << HexStr(scriptWitness.stack[i]) << endl;
+//         CScriptWitness[i] = json::value::string(HexStr(scriptWitness.stack[i]));
+//     }
+// }
 
-void CppRestProccessVinToJson(CTxIn tx_in, int counter, json::value& Vin)
-{
-    if (tx_in.prevout.IsNull())
-        Vin["CTxIn"][counter]["coinbase"] = json::value::string(HexStr(tx_in.scriptSig));
-    else
-        Vin["CTxIn"][counter]["ScriptSig"] = json::value::string(HexStr(tx_in.scriptSig));
-    if (tx_in.nSequence != tx_in.SEQUENCE_FINAL)
-        Vin["CTxIn"][counter]["nSequence"] = json::value::number(tx_in.nSequence);
+// void CppRestProccessVinToJson(CTxIn tx_in, int counter, json::value& Vin)
+// {
+//     if (tx_in.prevout.IsNull())
+//         Vin["CTxIn"][counter]["coinbase"] = json::value::string(HexStr(tx_in.scriptSig));
+//     else
+//         Vin["CTxIn"][counter]["ScriptSig"] = json::value::string(HexStr(tx_in.scriptSig));
+//     if (tx_in.nSequence != tx_in.SEQUENCE_FINAL)
+//         Vin["CTxIn"][counter]["nSequence"] = json::value::number(tx_in.nSequence);
 
-    // ProccessCOutPointToJson(Vin["CTxIn"]);
-    Vin["CTxIn"][counter]["COutPoint"]["hash"] = json::value::string(tx_in.prevout.hash.ToString());
-    Vin["CTxIn"][counter]["COutPoint"]["n"] = json::value::number(tx_in.prevout.n);
-}
+//     // ProccessCOutPointToJson(Vin["CTxIn"]);
+//     Vin["CTxIn"][counter]["COutPoint"]["hash"] = json::value::string(tx_in.prevout.hash.ToString());
+//     Vin["CTxIn"][counter]["COutPoint"]["n"] = json::value::number(tx_in.prevout.n);
+// }
 
-void CppRestProccessVtxToJson(vector<CTransactionRef> vtx, int vtx_size, json::value& root)
-{
-    int index = 0;
-    root["vtx"]["size"] = json::value::number(vtx_size);
+// void CppRestProccessVtxToJson(vector<CTransactionRef> vtx, int vtx_size, json::value& root)
+// {
+//     int index = 0;
+//     root["vtx"]["size"] = json::value::number(vtx_size);
 
-    for (const auto& it : vtx) {
-        const CTransaction& tx = *it;
-        string hexTx = EncodeHexTx(tx);
-        // cout << "Uploaded hexTx:\n" << hexTx << endl;
-        root["vtx"]["Txs"][index] = json::value::string(hexTx);
-        index++;
-        // cout << "Origin tx:\n" << tx.ToString() << endl;
-        // CMutableTransaction Mtx;
-        // DecodeHexTx(Mtx,hexTx,true);;
+//     for (const auto& it : vtx) {
+//         const CTransaction& tx = *it;
+//         string hexTx = EncodeHexTx(tx);
+//         // cout << "Uploaded hexTx:\n" << hexTx << endl;
+//         root["vtx"]["Txs"][index] = json::value::string(hexTx);
+//         index++;
+//         // cout << "Origin tx:\n" << tx.ToString() << endl;
+//         // CMutableTransaction Mtx;
+//         // DecodeHexTx(Mtx,hexTx,true);;
 
-        // //CTransaction& decodedTx
-        // CTransaction finaltx = CTransaction(Mtx);
-        // cout << "Constructed finaltx: \n" << finaltx.ToString() << endl;
-    }
+//         // //CTransaction& decodedTx
+//         // CTransaction finaltx = CTransaction(Mtx);
+//         // cout << "Constructed finaltx: \n" << finaltx.ToString() << endl;
+//     }
 
-    // for (CTransactionRef tx : vtx) {
-    //     root["vtx"]["Txs"][index]["Txhash"] = json::value::string(tx->GetHash().ToString());
-    //     root["vtx"]["Txs"][index]["nVersion"] = json::value::number(tx->nVersion);
-    //     root["vtx"]["Txs"][index]["nLockTime"] = json::value::number(tx->nLockTime);
+//     // for (CTransactionRef tx : vtx) {
+//     //     root["vtx"]["Txs"][index]["Txhash"] = json::value::string(tx->GetHash().ToString());
+//     //     root["vtx"]["Txs"][index]["nVersion"] = json::value::number(tx->nVersion);
+//     //     root["vtx"]["Txs"][index]["nLockTime"] = json::value::number(tx->nLockTime);
 
-    //     root["vtx"]["Txs"][index]["Vin"]["size"] = json::value::number(tx->vin.size());
-    //     root["vtx"]["Txs"][index]["Vout"]["size"] = json::value::number(tx->vout.size());
+//     //     root["vtx"]["Txs"][index]["Vin"]["size"] = json::value::number(tx->vin.size());
+//     //     root["vtx"]["Txs"][index]["Vout"]["size"] = json::value::number(tx->vout.size());
 
-    //     //cout << "Proccessing Vin..." << endl;
-    //     int tx_in_Counter = 0;
-    //     for (CTxIn tx_in : tx->vin) {
-    //         CppRestProccessVinToJson(tx_in, tx_in_Counter, root["vtx"]["Txs"][index]["Vin"]);
-    //         tx_in_Counter++;
-    //     }
-    //     //cout << "Proccessing Vout..." << endl;
-    //     int tx_out_Counter = 0;
-    //     for (CTxOut tx_out : tx->vout) {
-    //         CppRestProccessVoutToJson(tx_out, tx_out_Counter, root["vtx"]["Txs"][index]["Vout"]);
-    //         tx_out_Counter++;
-    //     }
-    //     // cout << "Proccessing CScriptWitness..." << endl;
-    //     for (CTxIn tx_in : tx->vin) {
-    //         CppRestProccessScriptWitnessToJson(tx_in.scriptWitness, root["vtx"]["Txs"][index]["CscriptWitness"]);
-    //     }
-    //     index++;
-    // }
-}
+//     //     //cout << "Proccessing Vin..." << endl;
+//     //     int tx_in_Counter = 0;
+//     //     for (CTxIn tx_in : tx->vin) {
+//     //         CppRestProccessVinToJson(tx_in, tx_in_Counter, root["vtx"]["Txs"][index]["Vin"]);
+//     //         tx_in_Counter++;
+//     //     }
+//     //     //cout << "Proccessing Vout..." << endl;
+//     //     int tx_out_Counter = 0;
+//     //     for (CTxOut tx_out : tx->vout) {
+//     //         CppRestProccessVoutToJson(tx_out, tx_out_Counter, root["vtx"]["Txs"][index]["Vout"]);
+//     //         tx_out_Counter++;
+//     //     }
+//     //     // cout << "Proccessing CScriptWitness..." << endl;
+//     //     for (CTxIn tx_in : tx->vin) {
+//     //         CppRestProccessScriptWitnessToJson(tx_in.scriptWitness, root["vtx"]["Txs"][index]["CscriptWitness"]);
+//     //     }
+//     //     index++;
+//     // }
+// }
 
-void CppRestConstructBlockToJson(CBlock block, json::value& root)
-{
-    root["hash"] = json::value::string(block.GetHash().ToString());
-    root["hashPrevBlock"] = json::value::string(block.hashPrevBlock.ToString());
-    root["nVersion"] = json::value::number(block.nVersion);
-    root["hashMerkleRoot"] = json::value::string(block.hashMerkleRoot.ToString());
-    root["nTime"] = json::value::number(block.nTime);
-    root["nBits"] = json::value::number(block.nBits);
-    root["nNonce"] = json::value::number(block.nNonce);
-    CppRestProccessVtxToJson(block.vtx, block.vtx.size(), root);
+// void CppRestConstructBlockToJson(CBlock block, json::value& root)
+// {
+//     root["hash"] = json::value::string(block.GetHash().ToString());
+//     root["hashPrevBlock"] = json::value::string(block.hashPrevBlock.ToString());
+//     root["nVersion"] = json::value::number(block.nVersion);
+//     root["hashMerkleRoot"] = json::value::string(block.hashMerkleRoot.ToString());
+//     root["nTime"] = json::value::number(block.nTime);
+//     root["nBits"] = json::value::number(block.nBits);
+//     root["nNonce"] = json::value::number(block.nNonce);
+//     CppRestProccessVtxToJson(block.vtx, block.vtx.size(), root);
 
-    // cout << "Construction completed...." << endl;
-}
+//     // cout << "Construction completed...." << endl;
+// }
 
 // uint256 deploySysContract(std::string blkname)
 // {
@@ -1189,12 +1193,42 @@ void CppRestConstructBlockToJson(CBlock block, json::value& root)
 //     return contract.address;
 // }
 
+
+
+
+void ProcessIPFSBlock(std::vector<CStorageMessage>& msg) {
+    IpfsStorageManager imanager{};
+    LogPrintf("Get cmanager path\n");
+    fs::path managerpath = GetCPORDir() / "imanager.dat";
+    LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
+    CAutoFile cfilemanager(fsbridge::fopen(managerpath ,"rb"), SER_DISK, CLIENT_VERSION);
+    // if(!cmanager.isInit()) {
+        
+    //     if(cfilemanager.IsNull()) {
+    //         LogPrintf("imanager.dat not found... create 1\n");
+    //         // cmanager.InitParams();
+    //         // cmanager.InitKey();
+    //         // cmanager.setInit();
+    //     } else {
+    //         LogPrintf("cmanager.dat serializing\n");
+    //        cfilemanager >> imanager ;
+    //     }
+    // }
+    if(!cfilemanager.IsNull()) {
+        cfilemanager >> imanager ;
+    }
+    imanager.receiveMessage(msg);
+    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath ,"wb"), SER_DISK, CLIENT_VERSION);
+    size_t nSize = GetSerializeSize(imanager, cfilemanagerOut.GetVersion());
+    cfilemanagerOut << imanager << nSize;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // CBlock and CBlockIndex
 //
 
-static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
+static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart,int nHeight)
 {
     // // Add block to IPFS
     // string blockinfo = "";
@@ -1216,7 +1250,29 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
         return error("WriteBlockToDisk: ftell failed");
     pos.nPos = (unsigned int)fileOutPos;
     fileout << block;
-    std::string testFile("test");
+    // std::string testFile("test");
+    LogPrintf("Init cmanager\n");
+    CBlockContractManager cmanager{};
+    LogPrintf("Get cmanager path\n");
+    fs::path managerpath = GetCPORDir() / "cmanager.dat";
+    LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
+    CAutoFile cfilemanager(fsbridge::fopen(managerpath ,"rb"), SER_DISK, CLIENT_VERSION);
+    if(!cmanager.isInit()) {
+        
+        if(cfilemanager.IsNull()) {
+            LogPrintf("cmanager.dat not found... create 1\n");
+            cmanager.InitParams();
+            cmanager.InitKey();
+            cmanager.setInit();
+        } else {
+            LogPrintf("cmanager.dat serializing\n");
+           cfilemanager >> cmanager ;
+        }
+    }
+    cmanager.appendColdPool(nHeight,block);
+    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath ,"wb"), SER_DISK, CLIENT_VERSION);
+    nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
+    cfilemanagerOut << cmanager << nSize;
     // deploySysContract(testFile);
     return true;
 }
@@ -1283,8 +1339,8 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 
     // cout << "Getting block from this hash:" << IPFShash << endl;
     // ---- Get IPFS file by IPFShash ----
-    block.SetNull();
-    GetFromIPFS(block, IPFShash);
+    // block.SetNull();
+    // GetFromIPFS(block, IPFShash);
     /* Do not use levelDB ----Hanry 20191209*/
     if (!ReadBlockFromDisk(block, blockPos, consensusParams))
         return false;
@@ -2266,6 +2322,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
             contractQueue.push(tx.contract);
         while (!contractQueue.empty()) {
             Contract cur = std::move(contractQueue.front());
+            std::cout << cur.args[0] <<std::endl;
             contractQueue.pop();
             cout << "Contract Queue Size:"<<contractQueue.size() << endl;
             std::vector<Contract> contractCall;
@@ -3805,7 +3862,7 @@ static FlatFilePos SaveBlockToDisk(const CBlock& block, int nHeight, const CChai
         // // ---- Write IPFS-HASH To Disk ----Hank 20190730
         // WriteIPFSHashToDisk(to_string(nHeight), IPFSHash);
         /* Do not use levelDB ----Hanry 20191209*/
-        if (!WriteBlockToDisk(block, blockPos, chainparams.MessageStart())) {
+        if (!WriteBlockToDisk(block, blockPos, chainparams.MessageStart(),nHeight)) {
             AbortNode("Failed to write block");
             return FlatFilePos();
         }

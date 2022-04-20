@@ -3,7 +3,7 @@
 if [ $# != 2 ]; then
     echo "usage: ourcontract-mkdll [CONTRACTS DIR] [CONTRACT]"
 else
-    if [ $# > 2 ] then
+    if [ $# > 2 ]; then
         gcc -fPIC -g -c -Wall $3 -o "$1/$2/code.o" "$1/$2/code.c"
     else
         gcc -fPIC -g -c -Wall -o "$1/$2/code.o" "$1/$2/code.c"

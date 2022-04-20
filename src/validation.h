@@ -31,6 +31,8 @@
 #include <utility>
 #include <vector>
 
+#include <storage/net_process.h>
+
 class CChainState;
 class CBlockIndex;
 class CBlockTreeDB;
@@ -318,6 +320,9 @@ bool CheckFinalTx(const CTransaction &tx, int flags = -1) EXCLUSIVE_LOCKS_REQUIR
  */
 bool TestLockPointValidity(const LockPoints* lp) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
+
+void ProcessIPFSBlock(std::vector<CStorageMessage>& msg);
+
 /**
  * Check if transaction will be BIP 68 final in the next block to be created.
  *
@@ -520,6 +525,7 @@ public:
     BlockMap mapBlockIndex GUARDED_BY(cs_main);
     std::multimap<CBlockIndex*, CBlockIndex*> mapBlocksUnlinked;
     CBlockIndex *pindexBestInvalid = nullptr;
+    
 
     bool LoadBlockIndex(const Consensus::Params& consensus_params, CBlockTreeDB& blocktree) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 

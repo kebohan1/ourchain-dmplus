@@ -134,6 +134,8 @@ BITCOIN_CORE_H = \
   consensus/tx_check.h \
   consensus/tx_verify.h \
   contract/processing.h \
+  contract/cpor/cpor.h \
+  contract/ipfsContract.h \
   core_io.h \
   core_memusage.h \
   cuckoocache.h \
@@ -197,6 +199,10 @@ BITCOIN_CORE_H = \
   shutdown.h \
   streams.h \
   storage/contract.h \
+  storage/net_processing.h \
+  storage/ipfs.h \
+  storage/ipfs_interface.h \
+  storage/cpor.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
   support/cleanse.h \
@@ -270,6 +276,7 @@ libbitcoin_server_a_SOURCES = \
   chain.cpp \
   consensus/tx_verify.cpp \
   contract/processing.cpp \
+  contract/ipfsContract.cpp \
   flatfile.cpp \
   httprpc.cpp \
   httpserver.cpp \
@@ -300,6 +307,9 @@ libbitcoin_server_a_SOURCES = \
   rpc/server.cpp \
   script/sigcache.cpp \
   storage/contract.cpp \
+  storage/ipfs.cpp \
+  storage/ipfs_interface.cpp \
+  storage/cpor.cpp \
   shutdown.cpp \
   timedata.cpp \
   torcontrol.cpp \
@@ -335,6 +345,9 @@ libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   interfaces/wallet.cpp \
+  storage/ipfs.cpp \
+  storage/ipfs_interface.cpp \
+  storage/cpor.cpp \
   wallet/coincontrol.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
@@ -419,6 +432,7 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/tx_check.cpp \
   consensus/validation.h \
   contract/contract.h \
+  contract/cpor/cpor.h \
   hash.cpp \
   hash.h \
   prevector.h \
@@ -518,12 +532,18 @@ AM_LDFLAGS += $(COMPAT_LDFLAGS)
 endif
 
 # ourcontract library
-include_HEADERS += contract/ourcontract.h
+include_HEADERS += contract/ourcontract.h \
+                   contract/cpor/cpor.h
 contract_libourcontract_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/$(subdir)/contract
-contract_libourcontract_la_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS)
+contract_libourcontract_la_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS) -lssl -lcrypto
 contract_libourcontract_la_SOURCES = \
   contract/libourcontract.c \
-  contract/ourcontract.h
+  contract/ourcontract.h \
+  contract/cpor/cpor-misc.c \
+  contract/cpor/cpor-core.c \
+  contract/cpor/cpor-file.c \
+  contract/cpor/cpor-keys.c \
+  contract/cpor/cpor.h
 contract_libourcontract_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
 #
 
@@ -609,9 +629,10 @@ bitcoin_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 # ourcontract-rt binary #
 ourcontract_rt_SOURCES = \
   contract/ourcontract-rt.c \
-  contract/ourcontract.h
-ourcontract_rt_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/$(subdir)/contract
-ourcontract_rt_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS)
+  contract/ourcontract.h \
+  contract/cpor/cpor.h
+ourcontract_rt_CPPFLAGS = $(AM_CPPFLAGS) -lssl -lcrypto -I$(top_srcdir)/$(subdir)/contract
+ourcontract_rt_CFLAGS = $(AM_CFLAGS) $(PIE_FLAGS) -lssl -lcrypto
 ourcontract_rt_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 ourcontract_rt_LDADD = \

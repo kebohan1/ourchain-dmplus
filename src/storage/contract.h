@@ -2,24 +2,152 @@
 #include <string> 
 #include <core_io.h>
 #include <uint256.h>
+#include <serialize.h>
+#include <contract/processing.h>
+#include <util/system.h>
+#include <contract/ipfsContract.h>
+#include <flatfile.h>
+#include <storage/cpor.h>
+
 
 class CIPFSNode {
 
 protected:
-  uint256 pubKey;
-  int nReputation = 0;
+  
 public:
-  CIPFSNode(uint256 pubKey) : pubKey(pubKey) {}
-  CIPFSNode(uint256 pubKey, int nReputation) : pubKey(pubKey), nReputation(nReputation) {}
-  void setReputation(int newRepuation) {
-    nReputation = newRepuation;
+  uint256 pubKey;
+  std::string ip;
+  CIPFSNode(){};
+  CIPFSNode(uint256 pubKey, std::string ip) : pubKey(pubKey), ip(ip) {}
+  std::string getIP(){
+    return ip;
   }
 
-  int getRepuatation(){
-    return nReputation;
-  }
+  ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(pubKey);
+        READWRITE(ip);
+    }
+
   
 };
+
+class StorageContract{
+  public:
+    std::map<uint256, CIPFSNode> vIPFSNode;
+    int nReputation = 0;
+    uint256 hash;
+    StorageContract(){};
+    
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(vIPFSNode);
+        READWRITE(nReputation);
+        READWRITE(hash);
+    }
+};
+
+class CBlockEach {
+  protected:
+    
+  public :
+    std::string CID;
+    std::string TagCID;
+    uint256 contract_hash;
+    uint256 hash;
+    std::vector<CIPFSNode> vSavers;
+    std::string firstChallengeCID;
+    int nHeight;
+    CBlockEach(){};
+    CBlockEach(std::string CID, uint256 contract_hash) : CID(CID), contract_hash(contract_hash){};
+    void Challenge();
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(CID);
+        READWRITE(TagCID);
+        READWRITE(nHeight);
+        READWRITE(contract_hash);
+        READWRITE(hash);
+        READWRITE(vSavers);
+    }
+
+};
+
+
+class CBlockContractManager {
+
+  protected:
+    std::vector<std::pair<int,CBlock>> vColdPool;
+    std::vector<std::pair<int,CBlock>> vWorkingSet;
+    std::vector<CBlockEach> vColdBlock;
+    std::vector<StorageContract> vStorageContract;
+    int n_max_cold_pool = 0;
+    int init = 0;
+    
+    
+
+  public:
+    CPOR_key* pkey = NULL;
+    CPOR_newParams cParams;
+    CBlockContractManager(){
+      // InitParams();
+    //  InitKey();
+    //   LogPrintf("init cmp\n"); 
+    };
+    void appendColdPool(int,const CBlock);
+    bool deployContract(std::vector<CBlockEach> &);
+    void receiveContract(IpfsContract);
+    CBlock* retrieveBlock(uint256);
+    
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(vColdPool);
+        READWRITE(vColdBlock);
+        READWRITE(vWorkingSet);
+        READWRITE(vStorageContract);
+        READWRITE(n_max_cold_pool);
+        READWRITE(init);
+        READWRITE(cParams);
+
+    }
+
+    void operator=(CBlockContractManager c) {
+      vColdPool = c.vColdPool;
+      vColdBlock = c.vColdBlock;
+      vWorkingSet = c.vWorkingSet;
+      vStorageContract = c.vStorageContract;
+      pkey = c.pkey;
+      cParams = c.cParams;
+    }
+    void setInit(){
+      init = 1;
+    }
+
+    bool isInit() {
+      return init;
+    }
+    int InitKey();
+    void InitParams();
+    int ReadKey();
+
+    void workingSet(int nHeight,CBlock* block);
+
+    void hotColdClassifier(CBlock* block);
+    std::string lookupColdBlock(FlatFilePos pos);
+    CBlock lookupWorkingSet(CBlock* block, FlatFilePos pos);
+    
+};
+
+
 
 // void mergeIPFSList(std::vector<CIPFSNode> &vIPFSList, int left, int right, int mid) {
 //   std::vector<CIPFSNode> vIPFSLeft(vIPFSList.begin()+left,vIPFSList.begin()+mid);
@@ -52,4 +180,4 @@ public:
 //   mergeIPFSList(vIPFSNode, left, mid, right);
 // }
 
-uint256 deploySysContract(std::string blkname);
+// uint256 deploySysContract(CBlock& pblock);

@@ -69,8 +69,11 @@
         "typeinfo": "cpp",
         "*.dat": "cpp",
         "ourcontract.h": "c",
-        "*.ipp": "c"
+        "*.ipp": "c",
+        "stdbool.h": "c",
+        "cpor.h": "c"
     },
     "C_Cpp.clang_format_fallbackStyle": "Google",
-    "editor.tabSize": 2
+    "editor.tabSize": 2,
+    "C_Cpp.errorSquiggles": "Disabled"
 }

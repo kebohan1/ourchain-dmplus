@@ -22,6 +22,7 @@
 #include <sync.h>
 #include <uint256.h>
 #include <threadinterrupt.h>
+#include <storage/net_process.h>
 
 #include <atomic>
 #include <deque>
@@ -194,7 +195,8 @@ public:
     bool CheckIncomingNonce(uint64_t nonce);
 
     bool ForNode(NodeId id, std::function<bool(CNode* pnode)> func);
-
+    
+    bool ForNodeMsg(NodeId id, CStorageMessage& msg);
     void PushMessage(CNode* pnode, CSerializedNetMsg&& msg);
 
     template<typename Callable>
@@ -312,6 +314,7 @@ public:
     */
     int64_t PoissonNextSendInbound(int64_t now, int average_interval_seconds);
 
+    CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool manual_connection);
 private:
     struct ListenSocket {
         SOCKET socket;
@@ -346,7 +349,7 @@ private:
     CNode* FindNode(const CService& addr);
 
     bool AttemptToEvictConnection();
-    CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool manual_connection);
+    
     bool IsWhitelistedRange(const CNetAddr &addr);
 
     void DeleteNode(CNode* pnode);
@@ -715,6 +718,8 @@ public:
     // Used for BIP35 mempool sending
     bool fSendMempool GUARDED_BY(cs_inventory){false};
 
+    std::vector<CStorageMessage> vStorageMessage;
+
     // Last time a "MEMPOOL" request was serviced.
     std::atomic<int64_t> timeLastMempoolReq{0};
 
@@ -849,6 +854,10 @@ public:
         } else if (inv.type == MSG_BLOCK) {
             vInventoryBlockToSend.push_back(inv.hash);
         }
+    }
+
+    void PushStorageMessage(const CStorageMessage& msg){
+        vStorageMessage.push_back(msg);
     }
 
     void PushBlockHash(const uint256 &hash)
