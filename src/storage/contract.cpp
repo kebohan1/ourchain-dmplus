@@ -54,11 +54,11 @@ void CBlockContractManager::appendColdPool(int nHeight,const CBlock pblock)
 
             fs::path path = GetDataDir() / "cpor" ;
             fs::create_directory(path);
-            path /= "Tags";
-            path /=  item.second.GetHash().ToString().append(".tag");
-            if(fs::exists(path)) continue;
+            fs::path TagFile = path /"Tags"/ item.second.GetHash().ToString().append(".tag");
+            fs::path TFile = path /"Tfiles"/ item.second.GetHash().ToString().append(".t");
+            if(fs::exists(TagFile)) continue;
             local_cpor_tag_file(str, item.second.GetHash(), pkey);
-
+            std::vector<unsigned char> t_bin = readFileToUnsignedChar(TFile.string());
             // mTagFile.insert(pair<uint256, FILE*>(item.second.GetHash(),fsbridge::fopen(path,"r")));
             std::vector<unsigned char> challenge = SerializeChallenge(cpor_challenge_file(item.second.GetHash().ToString(),pkey));
             // std::cout <<"Challenge" << HexStr(challenge) <<std::endl;
@@ -66,8 +66,9 @@ void CBlockContractManager::appendColdPool(int nHeight,const CBlock pblock)
             CBlockEach cBlockEach{};
             
             cBlockEach.CID = AddToIPFS(str);
-            cBlockEach.TagCID = AddToIPFS(HexStr(readFileToUnsignedChar(path.string())));
+            cBlockEach.TagCID = AddToIPFS(HexStr(readFileToUnsignedChar(TagFile.string())));
             cBlockEach.firstChallengeCID = AddToIPFS(HexStr(challenge));
+            cBlockEach.tfileCID = AddToIPFS(HexStr(t_bin));
             cBlockEach.hash = item.second.GetHash();
             cBlockEach.nHeight = item.first;
             vDeployList.push_back(cBlockEach);
@@ -175,6 +176,7 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach> &vDeployList)
             message.CID = list.CID;
             message.TagCID = list.TagCID;
             message.firstChallengeCID = list.firstChallengeCID;
+            message.tFileCID = list.tfileCID;
             g_connman->ForNodeMsg(nodeid, message);
           }
         }
@@ -211,24 +213,24 @@ void CBlockContractManager::receiveContract(IpfsContract contract) {
         }
       }
       
-      if(contract.getArgs()[0] == "save_block" && contract.getArgs().size() == 7) {
-        std::cout << "Proof started!" <<std::endl;
+      if(contract.getArgs()[0] == "save_block") {
+        // std::cout << "Proof started!" <<std::endl;
         ReadKey();
         for(auto& coldblock : vColdBlock){
           //TODO: 0419 following if is not jump in
           
           if(coldblock.hash.ToString() == contract.getArgs()[1]) {
-            std::cout << "Source merkle: " << coldblock.hash.ToString() << ",Output merkle:" << contract.getArgs()[1] <<std::endl;
+            // std::cout << "Source merkle: " << coldblock.hash.ToString() << ",Output merkle:" << contract.getArgs()[1] <<std::endl;
             int ret = cpor_verify_file(coldblock.hash.ToString(),
                                       UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[6]))),
                                       UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[4]))),
                                       pkey);
-            LogPrintf("cpor_verify result: %d\n", ret);
+            // LogPrintf("cpor_verify result: %d\n", ret);
             if(ret == 1) {
-              std::cout << "Proof success!" <<std::endl;
+              // std::cout << "Proof success!" <<std::endl;
               item.nReputation++;
             } else {
-              std::cout << "Proof failed!" <<std::endl;
+              // std::cout << "Proof failed!" <<std::endl;
               item.nReputation--;
             }
           }
@@ -273,24 +275,24 @@ int CBlockContractManager::InitKey()
     fs::path path = GetDataDir() / "cpor" ;
   fs::create_directory(path);
   path /= "cpor.key";
-    LogPrintf("Get the path\n");
+    // LogPrintf("Get the path\n");
 
     if(fs::exists(path)) return ReadKey();
 
-    LogPrintf("Get the new CPOR key\n");
+    // LogPrintf("Get the new CPOR key\n");
     if (((key = allocate_cpor_key(cParams.enc_key_size,cParams.mac_key_size)) == nullptr)) return -1;
     if (((key->global = cpor_create_global(cParams.Zp_bits)) == NULL)) return -1;
-    LogPrintf("Allocate success\n");
+    // LogPrintf("Allocate success\n");
     if (!RAND_bytes(key->k_enc, cParams.enc_key_size)) return -1;
     key->k_enc_size = cParams.enc_key_size;
     if (!RAND_bytes(key->k_mac, cParams.mac_key_size)) return -1;
     key->k_mac_size = cParams.mac_key_size;
     
-    LogPrintf("Open CPOR key path\n");
+    // LogPrintf("Open CPOR key path\n");
     pkey = key;
     keyfile = fsbridge::fopen(path, "w");
     if (!keyfile) return -1;
-    LogPrintf("CPOR key open complete\n");
+    // LogPrintf("CPOR key open complete\n");
     fwrite(&key->k_enc_size, sizeof(size_t), 1, keyfile);
     if (ferror(keyfile)) return -1;
     fwrite(key->k_enc, key->k_enc_size, 1, keyfile);
@@ -299,7 +301,7 @@ int CBlockContractManager::InitKey()
     if (ferror(keyfile)) return -1;
     fwrite(key->k_mac, key->k_mac_size, 1, keyfile);
     if (ferror(keyfile)) return -1;
-    LogPrintf("Zp\n");
+    // LogPrintf("Zp\n");
 
     Zp_size = BN_num_bytes(key->global->Zp);
     fwrite(&Zp_size, sizeof(size_t), 1, keyfile);
@@ -308,10 +310,10 @@ int CBlockContractManager::InitKey()
     memset(Zp, 0, Zp_size);
     if (!BN_bn2bin(key->global->Zp, Zp)) return -1;
     fwrite(Zp, Zp_size, 1, keyfile);
-    LogPrintf("keyfile and zp free\n");
+    // LogPrintf("keyfile and zp free\n");
     if (keyfile) fclose(keyfile);
     if (Zp) sfree(Zp, Zp_size);
-    LogPrintf("key complete\n");
+    // LogPrintf("key complete\n");
 
 
     return 1;
@@ -329,11 +331,11 @@ int CBlockContractManager::ReadKey() {
   path /= "cpor.key";
 	if( ((key = allocate_cpor_key(cParams.enc_key_size,cParams.mac_key_size)) == nullptr)) return -1;
 	if( ((key->global = allocate_cpor_global()) == NULL)) return -1;
-    LogPrintf("RdKey:Open CPOR key path\n");
-  LogPrintf("CPOR key path: %s\n", path.c_str());
+    // LogPrintf("RdKey:Open CPOR key path\n");
+  // LogPrintf("CPOR key path: %s\n", path.c_str());
 	keyfile = fsbridge::fopen(path, "r");
   if (!keyfile) return InitKey();
-    LogPrintf("RdKey:Read CPOR key\n");
+    // LogPrintf("RdKey:Read CPOR key\n");
 	
 	fread(&(key->k_enc_size), sizeof(size_t), 1, keyfile);
 	if(ferror(keyfile)) return -1;
@@ -351,7 +353,7 @@ int CBlockContractManager::ReadKey() {
 	fread(Zp, Zp_size, 1, keyfile);
 	if(ferror(keyfile)) return -1;
 	if(!BN_bin2bn(Zp, Zp_size, key->global->Zp)) return -1;
-    LogPrintf("RdKey:cmp\n");
+    // LogPrintf("RdKey:cmp\n");
 	
 	if(Zp) sfree(Zp, Zp_size);
 	if(keyfile) fclose(keyfile);

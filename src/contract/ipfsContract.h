@@ -49,6 +49,7 @@ struct Block {
   int nBlockSavers;
   char CIDHash[50];
   char merkleRoot[129]; // the length of merkle root is 256 bit
+  char tfileCID[50];
   int allocated_blockSavers_size;
   int num_blockSavers;
   int* blockSavers;

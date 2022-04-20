@@ -14,8 +14,8 @@
 
 
 void IpfsStorageManager::receiveMessage(std::vector<CStorageMessage> msgs) {
-  LogPrintf("Process Storage Reqeust Msg, size: %d\n",msgs.size());
-  LogPrintf("The smart contract key store is : %s\n",RegisterKey);
+  // LogPrintf("Process Storage Reqeust Msg, size: %d\n",msgs.size());
+  // LogPrintf("The smart contract key store is : %s\n",RegisterKey);
   std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
   std::shared_ptr<CWallet> const wallet = wallets.size() == 1 || wallets.size() > 0 ? wallets[0] : nullptr;
   
@@ -60,13 +60,13 @@ void IpfsStorageManager::receiveMessage(std::vector<CStorageMessage> msgs) {
     
 
   for(auto msg : msgs) {
-    std::cout << "CID: " << msg.CID << ",TagCID: " << msg.TagCID << ",ChallengeCID: " << msg.firstChallengeCID <<std::endl; 
+    // std::cout << "CID: " << msg.CID << ",TagCID: " << msg.TagCID << ",ChallengeCID: " << msg.firstChallengeCID <<std::endl; 
     PinIPFS(msg.CID);
     PinIPFS(msg.TagCID);
     std::string block = GetFromIPFS(msg.CID);
     std::string tag = GetFromIPFS(msg.TagCID);
     std::string challenge = GetFromIPFS(msg.firstChallengeCID);
-    std::cout << "Get All needed file cmp" <<std::endl;
+    // std::cout << "Get All needed file cmp" <<std::endl;
     
     CPOR_challenge* pchallenge = UnserializeChallenge(StrHex(challenge));
     
@@ -78,26 +78,27 @@ void IpfsStorageManager::receiveMessage(std::vector<CStorageMessage> msgs) {
     contract.action = contract_action::ACTION_CALL;
     contract.usage = contract_usage::USAGE_USER;
     contract.address = contractHash;
-    LogPrintf("IPFS signup output: %s\n",contractHash.ToString());
+    // LogPrintf("IPFS signup output: %s\n",contractHash.ToString());
 
     contract.args.push_back("save_block");
     contract.args.push_back(msg.hash.ToString());
     contract.args.push_back(msg.CID);
     contract.args.push_back(RegisterKey); //pubkey
     contract.args.push_back(proofCID); //proofCID
-    
-    contract.args.push_back(std::to_string(time(NULL))); //time
+    contract.args.push_back(msg.tFileCID);
     contract.args.push_back(msg.firstChallengeCID);
+    contract.args.push_back(std::to_string(time(NULL))); //time
+    
     
     //  CWalletTx wtx;
     CTransactionRef tx;
     CCoinControl no_coin_control;
     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
-    std::cout << "Send Contract cmp:" << tx->GetHash().GetHex() << std::endl;
+    // std::cout << "Send Contract cmp:" << tx->GetHash().GetHex() << std::endl;
     // free(pproof);
     free(pchallenge);
   }
-  LogPrintf("Process Cmp\n");
+  // LogPrintf("Process Cmp\n");
 }
 
 void IpfsStorageManager::init(){

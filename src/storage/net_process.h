@@ -10,6 +10,7 @@ class CStorageMessage {
     std::string CID;
     std::string TagCID;
     std::string firstChallengeCID;
+    std::string tFileCID;
     
     ADD_SERIALIZE_METHODS;
 
@@ -19,6 +20,7 @@ class CStorageMessage {
         READWRITE(CID);
         READWRITE(TagCID);
         READWRITE(firstChallengeCID);
+        READWRITE(tFileCID);
     }
 };
 

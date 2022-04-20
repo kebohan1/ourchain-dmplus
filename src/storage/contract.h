@@ -61,6 +61,7 @@ class CBlockEach {
     uint256 hash;
     std::vector<CIPFSNode> vSavers;
     std::string firstChallengeCID;
+    std::string tfileCID;
     int nHeight;
     CBlockEach(){};
     CBlockEach(std::string CID, uint256 contract_hash) : CID(CID), contract_hash(contract_hash){};

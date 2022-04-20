@@ -2,6 +2,7 @@
 // #include <uint256.h>
 #include <util/system.h>
 #include <util/strencodings.h>
+#include <storage/ipfs_interface.h>
 
 CPOR_newParams cNewParams;
 static CPOR_t *read_cpor_t(FILE *tfile, CPOR_key *pkey){
@@ -23,14 +24,14 @@ static CPOR_t *read_cpor_t(FILE *tfile, CPOR_key *pkey){
 	if(!tfile) return 0;
 	
 	if( ((t = allocate_cpor_t()) == NULL)) goto cleanup;
-	std::cout << "allocate t cmp" <<std::endl;
+	// std::cout << "allocate t cmp" <<std::endl;
 	/* Read t out of the file */
 	fread(&tbytes_size, sizeof(size_t), 1, tfile);
 	if(ferror(tfile)) goto cleanup;
 	if( ((tbytes = (unsigned char*)malloc(tbytes_size)) == NULL)) goto cleanup;
 	fread(tbytes, tbytes_size, 1, tfile);
 	if(ferror(tfile)) goto cleanup;	
-	std::cout << "Read t cmp" <<std::endl;
+	// std::cout << "Read t cmp" <<std::endl;
 
 
 
@@ -41,13 +42,13 @@ static CPOR_t *read_cpor_t(FILE *tfile, CPOR_key *pkey){
 	memcpy(&t0_mac_size, tbytes + sizeof(size_t) + t0_size, sizeof(size_t));
 	if( ((t0_mac = (unsigned char*)malloc(t0_mac_size)) == NULL)) goto cleanup;
 	memcpy(t0_mac, tbytes + sizeof(size_t) + t0_size + sizeof(size_t), t0_mac_size);
-	std::cout << "Parse t cmp" <<std::endl;
+	// std::cout << "Parse t cmp" <<std::endl;
 	
 	/* Verify and decrypt t0 */
 	if( ((plaintext =(unsigned char*) malloc(t0_size)) == NULL)) goto cleanup;
 	memset(plaintext, 0, t0_size);
 	if(!decrypt_and_verify_secrets(pkey, t0 + sizeof(unsigned int), t0_size - sizeof(unsigned int), plaintext, &plaintext_size, t0_mac, t0_mac_size)) goto cleanup;
-	std::cout << "Verify t cmp" <<std::endl;
+	// std::cout << "Verify t cmp" <<std::endl;
 	
 
 	/* Populate the CPOR_t struct */
@@ -65,7 +66,7 @@ static CPOR_t *read_cpor_t(FILE *tfile, CPOR_key *pkey){
 		if(!BN_bin2bn(alpha, alpha_size, t->alpha[i])) goto cleanup;
 		sfree(alpha, alpha_size);
 	}	
-	std::cout << "Populate t cmp" <<std::endl;
+	// std::cout << "Populate t cmp" <<std::endl;
 
 
 	if(plaintext) sfree(plaintext, plaintext_size);
@@ -495,8 +496,9 @@ CPOR_challenge *cpor_challenge_file(std::string hash, CPOR_key* pkey){
 
 	
 	/* Get t for n (the number of blocks) */
-	t = read_cpor_t(tfile, pkey);
-  std::cout << "Read t cmp" <<std::endl;
+	// t = read_cpor_t(tfile, pkey);
+	t = UnserializeT(readFileToUnsignedChar(path.string()));
+  // std::cout << "Read t cmp" <<std::endl;
 	if(!t){ fprintf(stderr, "Could not get t.\n"); goto cleanup; }
 
 	challenge = cpor_create_challenge(pkey->global, t->n);
@@ -857,7 +859,10 @@ int local_cpor_tag_file(std::string str, uint256 hash, CPOR_key* pkey){
 
 
 	/* Write t to the tfile */
-	if(!write_cpor_t(tfile, pkey, t)) return -1;
+	// if(!write_cpor_t(tfile, pkey, t)) return -1;
+	std::vector<unsigned char> t_bin = SerializeT(t);
+	unsigned char* p_t_bin = &t_bin[0];
+	fwrite(p_t_bin, t_bin.size(), 1, tfile);
   // LogPrintf("Finalize\n");
 	destroy_cpor_t(t);
 	// if(file) fclose(file);
@@ -1063,7 +1068,7 @@ CPOR_challenge* UnserializeChallenge(std::vector<unsigned char> from) {
 	unsigned int l;
 	unsigned int I;
 	int zp_size;
-	std::cout << "Serialize challenge start" <<std::endl;
+	// std::cout << "Serialize challenge start" <<std::endl;
 
 	memcpy(&l, pfrom, sizeof(unsigned int));
 	offset += sizeof(unsigned int);
@@ -1080,14 +1085,14 @@ CPOR_challenge* UnserializeChallenge(std::vector<unsigned char> from) {
 	
   memcpy(&zp_size, pfrom + offset ,sizeof(int));
 	zp_char = new unsigned char[zp_size];
-	std::cout << "ZPs:" << zp_size <<std::endl;
+	// std::cout << "ZPs:" << zp_size <<std::endl;
 	offset += sizeof(int);
 
 	memcpy(zp_char, pfrom + offset, zp_size);
 	BN_bin2bn(zp_char, zp_size, newChallenge->global->Zp);
   offset += zp_size;
-	std::cout << "ZP:" << zp_char <<std::endl;
-	std::cout << "ZP cmp" << std::endl;
+	// std::cout << "ZP:" << zp_char <<std::endl;
+	// std::cout << "ZP cmp" << std::endl;
   for(int i =0;i<newChallenge->l;++i){
 
 		int bigNumSize;
@@ -1099,7 +1104,7 @@ CPOR_challenge* UnserializeChallenge(std::vector<unsigned char> from) {
 		BN_bin2bn(nu_char, bigNumSize, newChallenge->nu[i]);
     offset += bigNumSize;
   }
-	std::cout << "Unserialize Challenge cmp" <<std::endl;
+	// std::cout << "Unserialize Challenge cmp" <<std::endl;
   return newChallenge;
   
 }
@@ -1192,7 +1197,7 @@ CPOR_proof *cpor_prove_file(std::string strfile, std::vector<unsigned char> tagf
 	
 	memset(block, 0, cNewParams.block_size);
   
-	std::cout << "sizeof I: " << sizeof(challenge->I)/sizeof(unsigned int) <<std::endl;
+	// std::cout << "sizeof I: " << sizeof(challenge->I)/sizeof(unsigned int) <<std::endl;
 	for(i = 0; i < challenge->l; i++){
 		unsigned int offset = 0;
 		memset(block, 0, cNewParams.block_size);
@@ -1214,7 +1219,7 @@ CPOR_proof *cpor_prove_file(std::string strfile, std::vector<unsigned char> tagf
     
 		/* Read tag for data block at I[i] */
 		tag = read_str_cpor_tag(tagfile, challenge->I[i]);
-		std::cout << "TagIndex" << tag->index <<std::endl;
+		// std::cout << "TagIndex" << tag->index <<std::endl;
 		if(!tag) goto cleanup;
 		
 		proof = cpor_create_proof_update(challenge, proof, tag, block, cNewParams.block_size, challenge->I[i], i);
@@ -1224,7 +1229,7 @@ CPOR_proof *cpor_prove_file(std::string strfile, std::vector<unsigned char> tagf
 		
 	}
 	
-	std::cout <<"success" <<std::endl;
+	// std::cout <<"success" <<std::endl;
 	proof = cpor_create_proof_final(proof);
 	// destroy_cpor_challenge(challenge);
 	// if(file) fclose(file);
@@ -1247,7 +1252,7 @@ std::vector<unsigned char> SerializeProof(CPOR_proof* proof) {
 
   char* result = new char[size+1];
   unsigned int offset = 0;
-  std::cout << "SerializeProof..." <<std::endl;
+  // std::cout << "SerializeProof..." <<std::endl;
 
   int bigNumSize = BN_num_bytes(proof->sigma);
   memcpy(result, &bigNumSize,sizeof(int));
@@ -1384,7 +1389,9 @@ int cpor_verify_file(std::string hash, CPOR_challenge *challenge, CPOR_proof *pr
 	if(!key) return 0;
 	
 	/* Get t */
-	t = read_cpor_t(tfile, key);
+	// t = read_cpor_t(tfile, key);
+	std::vector<unsigned char> t_bin = readFileToUnsignedChar(tfilepath.string());
+	t = UnserializeT(t_bin);
 	if(!t) return 0;
 	
 	ret = cpor_verify_proof(challenge->global, proof, challenge, t->k_prf, t->alpha);
@@ -1396,19 +1403,19 @@ int cpor_verify_file(std::string hash, CPOR_challenge *challenge, CPOR_proof *pr
 }
 
 std::vector<unsigned char> SerializeT(CPOR_t* t) {
-  unsigned int size = sizeof(unsigned int) + cNewParams.prf_key_size + sizeof(int);
+  unsigned int size = sizeof(unsigned int) + cNewParams.prf_key_size;
   for(int i =0;i<cNewParams.num_sectors;++i){
     size += BN_num_bytes(t->alpha[i]) + sizeof(int);
   }
 
   char* result = new char[size+1];
   unsigned int offset = 0;
-  std::cout << "SerializeT..." <<std::endl;
+  // std::cout << "SerializeT..." <<std::endl;
 
 	memcpy(result, &t->n, sizeof(unsigned int));
 	offset += sizeof(unsigned int);
 
-  memcpy(result, t->k_prf,cNewParams.prf_key_size);
+  memcpy(result + offset, t->k_prf,cNewParams.prf_key_size);
   offset += cNewParams.prf_key_size;
 
   for(int i =0;i<cNewParams.num_sectors;++i){
@@ -1432,7 +1439,7 @@ CPOR_t* UnserializeT(std::vector<unsigned char> from) {
 	
 	CPOR_t* t = allocate_cpor_t();
   
-  std::cout << "UnserializeT..." <<std::endl;
+  // std::cout << "UnserializeT..." <<std::endl;
 
 	memcpy(&t->n, pfrom, sizeof(unsigned int));
 	offset += sizeof(unsigned int);

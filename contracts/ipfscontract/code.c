@@ -81,6 +81,7 @@ typedef struct block {
   int nBlockSavers;
   char CIDHash[50];
   char merkleRoot[129]; // the length of merkle root is 256 bit
+  char tfileCID[50];
   int allocated_blockSavers_size;
   int num_blockSavers;
   int* blockSavers;
@@ -888,7 +889,13 @@ static void appendToProofArray(ProofBlock* proofList, ProofBlock proof, int* all
 }
 
 
-// connect with IPFS
+/**
+ * @brief connect with IPFS
+ * 
+ * @param path 
+ * @param n_path 
+ * @return char* 
+ */
 char* HTTPrequest(char* path, int n_path) {
   char *host = "127.0.0.1"; // 目標 URI
     char *PORT_NUM = "5001"; // HTTP port
@@ -927,8 +934,7 @@ char* HTTPrequest(char* path, int n_path) {
     // 以 getaddrinfo 透過 DNS，取得 addrinfo 鏈結串列 (Linked List)
     // 以從中取得 Host 的 IP 位址
     if ((gaiStatus = getaddrinfo(host, PORT_NUM, &hints, &result)) != 0)
-        errExit((char *) gai_strerror(gaiStatus));
-
+        return NULL;
 
     // 分別以 domain, type, protocol 建立 socket 檔案描述符
     cfd = socket(result->ai_family, result->ai_socktype, 0);
@@ -936,7 +942,7 @@ char* HTTPrequest(char* path, int n_path) {
     // 以 socket 檔案描述符 (cfd), addr, addrlen 進行連線
     // 其中，result->ai_addr 為 gai 取得之 通用 socket 位址結構 -- sockaddr
     if (connect(cfd, result->ai_addr, result->ai_addrlen) < 0)
-        errExit("Connect");
+        return NULL;
 
 
     // 釋放 getaddrinfo (Linked List) 記憶體空間
@@ -948,11 +954,13 @@ char* HTTPrequest(char* path, int n_path) {
 
     // 發送請求
     if (send(cfd, request, strlen(request), 0) < 0)
-        errExit("Send");
+                return NULL;
+
 
     // 接收回應
     if (recv(cfd, response, 0xfff, 0) < 0)
-        errExit("Receive");
+                return NULL;
+
 
     // 格式化輸出回應訊息
     printf("----------\nResponse:\n----------\n%s\n", response);
@@ -988,18 +996,22 @@ unsigned int charVal(char i){
     return (i >= '0' && i <= '9') ? i - '0' : i - 'a' + 10;
 }
 
-//function to achieve proof in contract
+/**
+ * @brief convert string to hex
+ * 
+ * @param from 
+ * @param nFrom 
+ * @return unsigned* 
+ */
 unsigned char* StrHex(char* from, int nFrom) {
     unsigned char* result = malloc(nFrom / 2);
     int index = 0;
-    while(*(from) != '\0' ) {
-        unsigned char val = charVal(*from);
+    for(int i = 0; i < nFrom; i += 2) {
+        unsigned char val = charVal(from[i]);
         val <<= 4;
-        val += charVal(*(from + 1));
+        val += charVal(from[i + 1]);
         result[index++] = val;
-        from += 2;
     }
-
     return result;
 }
 
@@ -1077,24 +1089,72 @@ CPOR_challenge* UnserializeChallenge(unsigned char* pfrom) {
   
 }
 
+CPOR_t* UnserializeT(unsigned char* pfrom) {
+	unsigned int offset = 0;
+	
+	CPOR_t* t = allocate_cpor_t();
 
+	memcpy(&t->n, pfrom, sizeof(unsigned int));
+	offset += sizeof(unsigned int);
 
-int validateProof(char* proofCID, Block* block) {
-  // char* source = HTTPrequest("POST","","");//read proof from IPFS
-  // char* blockPath = "";// 讀取本地的區塊用來驗證
+  memcpy(t->k_prf, pfrom + offset ,params.prf_key_size);
+  offset += params.prf_key_size;
+
+  for(int i =0;i<params.num_sectors;++i){
+
+		int nSize;
+    memcpy(&nSize, pfrom + offset, sizeof(int));
+    offset += sizeof(int);
+
+    unsigned char* alpha_char = malloc(nSize);
+    memcpy(alpha_char, pfrom + offset, nSize);
+		BN_bin2bn(alpha_char, nSize, t->alpha[i]);
+    offset += nSize;
+  }
+  return t;
   
 }
 
-// contract function
-// void state_init() {
-//   state = malloc(sizeof(State));
-//   state->blocksList = malloc(sizeof(Block*) * MAX_BLOCK_NUM);
-//   state->proofList = malloc(sizeof(ProofBlock) * INIT_BLOCK_PROOF_NUM);
-//   state->aSignList = malloc(sizeof(IPFSNode*) * MAX_USER);
-//   state->num_account = 0;
-//   state->nReplication = 3;//at least
-//   state->nBlockNumber = 0;
-// }
+void hexPrintf(unsigned char* hex, int n) {
+    err_printf("--------------Hex--------------\n");
+    for(int i = 0; i < n; ++i) {
+        err_printf("%2x ",hex[i]);
+    }
+    err_printf("-------------Hex END-----------\n");
+}
+
+/**
+ * @brief Validate the saving status
+ * 
+ * @param proofCID 
+ * @param challengeCID 
+ * @param block 
+ * @return int 
+ */
+int validateProof(char* proofCID, char* challengeCID, Block* block) {
+  // char* source = HTTPrequest("POST","","");//read proof from IPFS
+  // char* blockPath = "";// 讀取本地的區塊用來驗證
+  char* proof_ret = HTTPrequest(proofCID, strlen(proofCID));
+  unsigned char* proof_hex = StrHex(proof_ret, strlen(proof_ret));
+  err_printf("proof: %s\n",proof_ret);
+  hexPrintf(proof_hex, strlen(proof_ret));
+  char* challenge_ret = HTTPrequest(challengeCID, strlen(challengeCID));
+  unsigned char* challenge_hex = StrHex(challenge_ret,strlen(challenge_ret));
+  err_printf("challenge_ret: %s\n",challenge_ret);
+  hexPrintf(challenge_hex, strlen(challenge_ret));
+  char* tfile_ret = HTTPrequest(block->tfileCID, strlen(block->tfileCID));
+  unsigned char* tfile_hex = StrHex(tfile_ret,strlen(tfile_ret));
+  err_printf("tfile_ret: %s\n",tfile_ret);
+  hexPrintf(tfile_hex, strlen(tfile_ret));
+  
+  
+  CPOR_proof* proof = UnserializeProof(proof_hex);
+  CPOR_challenge* challenge = UnserializeChallenge(StrHex(challenge_ret, strlen(challenge_ret)));
+  CPOR_t* t = UnserializeT(StrHex(tfile_ret,strlen(tfile_ret)));
+  int ret = cpor_verify_proof(challenge->global, proof, challenge, t->k_prf, t->alpha);
+  err_printf("Validate Proof: %d\n", ret);
+  return ret;
+}
 
 int cmpIPFSNode(IPFSNode* node1, IPFSNode* node2) {
   if(!strcmp(node1->address,node2->address)) return 1;
@@ -1135,7 +1195,7 @@ void qsortIPFS(IPFSNode* pIpfsnode,size_t nItems) {
   qsort(pIpfsnode, nItems, sizeof(IPFSNode), cmpIPFSnodeBlockNum);
 }
 
-static int saveBlock(char* merkle_root, char* CID, int index_Ipfsnode, char* proofCID, int time, char* challengCID) {
+static int saveBlock(char* merkle_root, char* CID, int index_Ipfsnode, char* proofCID, int time, char* challengCID, char* tfileCID) {
     // typedef struct block {
           // int allocated_blockSavers_size;
           // int num_blockSavers;
@@ -1160,21 +1220,23 @@ static int saveBlock(char* merkle_root, char* CID, int index_Ipfsnode, char* pro
       nowBlock = malloc(sizeof(Block));
       strcpy(nowBlock->merkleRoot, merkle_root);
       strcpy(nowBlock->CIDHash,CID);
+      strcpy(nowBlock->tfileCID, tfileCID);
       nowBlock->nBlockSavers = 0;
       nowBlock->num_proof = 0;
       nowBlock->allocated_array_proof_size = INIT_PROOF_ARRAY_SIZE;
       nowBlock->num_proof = 0;
       nowBlock->array_proof_block = malloc(sizeof(ProofBlock) * nowBlock->allocated_array_proof_size);
       nowBlock->allocated_blockSavers_size = INIT_IPFSNODE_ARRAY_SIZE;
-      nowBlock->blockSavers = malloc(sizeof(int) * nowBlock->allocated_blockSavers_size);
+      nowBlock->blockSavers = malloc(sizeof(int) * nowBlock->allocated_blockSavers_size);\
+      
   }
   
-  /* TODO: Block Upload need to verify by provide the proof of block to check to success. We
-   * can implement with the Provable Data Possision (PDP). This should be done before the benckmark
-   * 2022-03-13
-   */
-   // int ret = validateProof(proofCID)
-   // if(!ret) return -1;
+    /**
+     * @brief Validate the proof to prevent the fake upload
+     * 
+     */
+   int ret = validateProof(proofCID,challengCID,nowBlock);
+//    if(!ret) return -1;
 
   appendToBlockSaverArray(nowBlock->blockSavers,index_Ipfsnode,&nowBlock->allocated_blockSavers_size,&nowBlock->num_blockSavers);
   // nowBlock->blockSavers[nowBlock->nBlockSavers] = index_Ipfsnode;
@@ -1245,7 +1307,7 @@ static void initParams(){
 	params.enc_key_size = 32;				/* Size (in bytes) of the user's AES encryption key */
 	params.mac_key_size = 20;				/* Size (in bytes) of the user's MAC key */
 
-	params.block_size = 4096;				/* Message block size in bytes */				
+	params.block_size = 100;				/* Message block size in bytes */				
 	params.num_threads = 4;
 	params.num_challenge = params.lambda;	/* From the paper, a "conservative choice" for l is lamda, the number of bits to represent our group, Zp */
 
@@ -1330,13 +1392,16 @@ int contract_main(int argc, char** argv)
           * argv[3]: CID
           * argv[4]: ipfs pubkey
           * argv[5]: proof CID
-          * argv[6]: time
+          * argv[6]: tfileCID
+          * argv[7]: challenge CID
+          * argv[8]: time
           */
-          if(argc != 8) return -1;
+          if(argc != 9) return -1;
           int n_ipfs_index = findIPFSnode(argv[4]);
           err_printf("index:%d\n",n_ipfs_index);
           if(n_ipfs_index < 0) return -1;
-          int ret = saveBlock(argv[2], argv[3], n_ipfs_index, argv[5], atoi(argv[6]), argv[7]);
+          int ret = saveBlock(argv[2], argv[3], n_ipfs_index, argv[5], 
+                                    atoi(argv[8]), argv[7], argv[6]);
           err_printf("%d,%s,%s,%s\n", ret, argv[2], argv[3], argv[4]);
           if(ret < 0) return -1;
           // out_clear();
