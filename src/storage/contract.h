@@ -144,7 +144,7 @@ class CBlockContractManager {
 
     void hotColdClassifier(CBlock* block);
     bool lookupColdBlock(FlatFilePos pos);
-    CBlock lookupWorkingSet(CBlock* block, FlatFilePos pos);
+    bool lookupWorkingSet(FlatFilePos pos);
     CBlock& GetBackFromIPFS(FlatFilePos pos);
 };
 

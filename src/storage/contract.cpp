@@ -119,21 +119,20 @@ void CBlockContractManager::workingSet(uint256 hash, FlatFilePos pos)
     vWorkingSet.push_back(std::pair<uint256,FlatFilePos>(hash, pos));
 }
 
-CBlock CBlockContractManager::lookupWorkingSet(CBlock* block, FlatFilePos pos)
+bool CBlockContractManager::lookupWorkingSet(FlatFilePos pos)
 {
-    CBlock nullBlock;
-    for (auto it = vWorkingSet.begin(); it != vWorkingSet.end(); ++it) {
-        // if(it->first.nFile == pos.nFile && it->first.nPos == pos.nPos) {
-        //   return *(it->second);
-        // }
+    for (auto& it : vWorkingSet) {
+        if(pos.hash == it.first){
+            return true;
+        }
     }
-    return nullBlock;
+    return false;
 }
 
 bool CBlockContractManager::lookupColdBlock(FlatFilePos pos)
 {
-    for (auto& it : vWorkingSet) {
-        if(pos.hash == it.first){
+    for (auto& it : vColdBlock) {
+        if(pos.hash == it.hash){
             return true;
         }
     }
@@ -208,7 +207,7 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
                     message.firstChallengeCID = list.firstChallengeCID;
                     message.tFileCID = list.tfileCID;
                     g_connman->ForNodeMsg(nodeid, message);
-                    csvStream << time(NULL) << "," << list.hash.ToString() <<",0";
+                    csvStream << time(NULL) << "," << list.hash.ToString() <<",2";
                 }
                 flag = true;
             }
@@ -270,7 +269,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                             // std::cout << "Proof failed!" <<std::endl;
                             item.nReputation--;
                         }
-                        csvStream << time(NULL) << "," << coldblock.hash.ToString() <<",0";
+                        csvStream << time(NULL) << "," << coldblock.hash.ToString() <<",3";
 
                     }
                 }

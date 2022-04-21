@@ -12,11 +12,11 @@ RUN cd db-4.8.30.NC/build_unix/ && ../dist/configure --disable-shared --enable-c
 RUN cd ../..
 RUN add-apt-repository ppa:bitcoin/bitcoin
 RUN apt-get update
-RUN apt-get install -y libdb4.8-dev libdb4.8++-dev libcpprest-dev
-RUN cd ~/ourchain-dmplus && ./autogen.sh
-RUN ./configure CPPFLAGS="-I${BDB_PREFIX}/include/ -O2" LDFLAGS="-L${BDB_PREFIX}/lib/" CRYPTO_LIBS="-lboost_system -lcrypto -lssl -lcpprest" --without-gui
-RUN make -j 2 && make install && ldconfig
-RUN cd ~ && wget https://golang.org/dl/go1.15.13.linux-amd64.tar.gz && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.16.5.linux-amd64.tar.gz
+RUN apt-get install -y libdb4.8-dev libdb4.8++-dev libcpprest-dev bsdmainutils
+RUN cd ~/ourchain-dmplus && git checkout contract_call_by_sys_test && ./autogen.sh && \
+./configure CPPFLAGS="-I${BDB_PREFIX}/include/ -O2" LDFLAGS="-L${BDB_PREFIX}/lib/" CRYPTO_LIBS="-lboost_system -lcrypto -lssl -lcpprest" --without-gui && \
+make -j 2 && make install && ldconfig
+RUN cd ~ && wget https://golang.org/dl/go1.15.13.linux-amd64.tar.gz && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.15.13.linux-amd64.tar.gz
 ENV PATH=$PATH:/usr/local/go/bin
 RUN go version
 RUN echo "export GOPATH=$HOME/go" >> ~/.profile

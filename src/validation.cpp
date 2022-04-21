@@ -1314,7 +1314,10 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     FILE* f = fsbridge::fopen(newBlockPath, "rb");
     fseek(f, pos.nPos, SEEK_SET);
     CAutoFile filein(OpenNewBlockFile(pos, true),SER_DISK,CLIENT_VERSION);
-
+     std::fstream csvStream;
+    fs::path csvPath = GetDataDir() / "read.csv";
+    csvStream.open(csvPath.string(),ios::app);
+    csvStream << time(NULL) << "," << pos.hash.ToString() <<",0";
 
     CBlockContractManager cmanager{};
     fs::path managerpath = GetCPORDir() / "cmanager.dat";
@@ -1331,7 +1334,7 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
            cfilemanager >> cmanager ;
         }
     }
-    if(cmanager.lookupColdBlock(pos)) {
+    if(cmanager.lookupWorkingSet(pos)) {
         if (filein.IsNull())
             return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.hash.ToString());
         // Read block from local
@@ -1345,8 +1348,15 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
         block = cmanager.GetBackFromIPFS(pos);
         if(block.IsNull())
             return error("Faile to read block from IPFS");
+        csvStream << time(NULL) << "," << pos.hash.ToString() <<",1";
+        
+        CAutoFile fileout(OpenNewBlockFile(pos),SER_DISK,CLIENT_VERSION);
+        fileout << block;
+        cmanager.workingSet(block.GetHash(), pos);
     }
-   
+    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath ,"wb"), SER_DISK, CLIENT_VERSION);
+    int nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
+    cfilemanagerOut << cmanager << nSize;
     // Check the header
     if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
