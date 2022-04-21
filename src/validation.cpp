@@ -1270,7 +1270,7 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
         }
     }
     // cmanager.appendColdPool(block.GetHash());
-    cmanager.workingSet(block.GetHash());
+    cmanager.workingSet(block.GetHash(),pos);
     CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath ,"wb"), SER_DISK, CLIENT_VERSION);
     nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
     cfilemanagerOut << cmanager << nSize;
@@ -1314,17 +1314,39 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     FILE* f = fsbridge::fopen(newBlockPath, "rb");
     fseek(f, pos.nPos, SEEK_SET);
     CAutoFile filein(OpenNewBlockFile(pos, true),SER_DISK,CLIENT_VERSION);
-    
-    if (filein.IsNull())
-        return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
 
-    // Read block
-    try {
-        filein >> block;
-    } catch (const std::exception& e) {
-        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
+
+    CBlockContractManager cmanager{};
+    fs::path managerpath = GetCPORDir() / "cmanager.dat";
+    CAutoFile cfilemanager(fsbridge::fopen(managerpath ,"rb"), SER_DISK, CLIENT_VERSION);
+    if(!cmanager.isInit()) {
+        
+        if(cfilemanager.IsNull()) {
+            LogPrintf("cmanager.dat not found... create 1\n");
+            cmanager.InitParams();
+            cmanager.InitKey();
+            cmanager.setInit();
+        } else {
+            LogPrintf("cmanager.dat serializing\n");
+           cfilemanager >> cmanager ;
+        }
     }
-
+    if(cmanager.lookupColdBlock(pos)) {
+        if (filein.IsNull())
+            return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.hash.ToString());
+        // Read block from local
+        try {
+            
+            filein >> block;
+        } catch (const std::exception& e) {
+            return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.hash.ToString());
+        }
+    } else {
+        block = cmanager.GetBackFromIPFS(pos);
+        if(block.IsNull())
+            return error("Faile to read block from IPFS");
+    }
+   
     // Check the header
     if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());

@@ -61,6 +61,7 @@ void IpfsStorageManager::receiveMessage(std::vector<CStorageMessage> msgs) {
 
   for(auto msg : msgs) {
     // std::cout << "CID: " << msg.CID << ",TagCID: " << msg.TagCID << ",ChallengeCID: " << msg.firstChallengeCID <<std::endl; 
+    if(vStoredBlock.find(msg.hash) != vStoredBlock.end()) continue;
     PinIPFS(msg.CID);
     PinIPFS(msg.TagCID);
     std::string block = GetFromIPFS(msg.CID);
@@ -97,6 +98,11 @@ void IpfsStorageManager::receiveMessage(std::vector<CStorageMessage> msgs) {
     // std::cout << "Send Contract cmp:" << tx->GetHash().GetHex() << std::endl;
     // free(pproof);
     free(pchallenge);
+    IpfsStoredBlock cblock;
+    cblock.CID = msg.CID;
+    cblock.hash = msg.hash;
+    cblock.TagCID = msg.TagCID;
+    vStoredBlock.insert(std::pair<uint256, IpfsStoredBlock>(msg.hash,cblock));
   }
   // LogPrintf("Process Cmp\n");
 }

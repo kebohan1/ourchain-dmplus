@@ -8,9 +8,24 @@
 #include <util/system.h>
 // #include <flatfile.h>
 #include <storage/net_process.h>
+// #include <storage/contract.h>
 // #include <net.h>
 
+class IpfsStoredBlock {
+  public:
+  std::string CID;
+  std::string TagCID;
+  uint256 hash;
 
+  ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(CID);
+        READWRITE(TagCID);
+        READWRITE(hash);
+    }
+};
 
 class IpfsStorageManager {
 
@@ -20,6 +35,7 @@ class IpfsStorageManager {
 
   std::vector<uint256> vStoredContract;
   std::vector<CStorageMessage> vReadySolvingMsg;
+  std::map<uint256 ,IpfsStoredBlock> vStoredBlock;
   uint256 contractHash;
   std::string RegisterKey;
 

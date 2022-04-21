@@ -1213,7 +1213,9 @@ static int saveBlock(char* merkle_root, char* CID, int index_Ipfsnode, char* pro
     int res = findBlockSaver(blockIndex, pIpfsNode);
     if(res) return -1;
     nowBlock = &aBlocks[blockIndex];
-
+    if(strcmp(tfileCID,nowBlock->tfileCID)) {
+        return -1;
+    }
     
   } else {
       // Create the initial block
@@ -1236,7 +1238,7 @@ static int saveBlock(char* merkle_root, char* CID, int index_Ipfsnode, char* pro
      * 
      */
    int ret = validateProof(proofCID,challengCID,nowBlock);
-//    if(!ret) return -1;
+   if(!ret) return -1;
 
   appendToBlockSaverArray(nowBlock->blockSavers,index_Ipfsnode,&nowBlock->allocated_blockSavers_size,&nowBlock->num_blockSavers);
   // nowBlock->blockSavers[nowBlock->nBlockSavers] = index_Ipfsnode;

@@ -20,8 +20,8 @@
 
 using namespace std;
 
-#define COLDPOOL_MAX 1
-#define WORKINGSET_SIZE 10 * sizeof(uint256)
+#define COLDPOOL_MAX 10000
+#define WORKINGSET_SIZE 320000 * sizeof(uint256)
 
 // TODO: select ipfs amount should be global setting
 int ipfs_max_select = 4;
@@ -29,19 +29,25 @@ int ipfs_max_select = 4;
 int ipfs_no_reputation_rate = 0.25;
 
 
-void CBlockContractManager::appendColdPool(uint256 hash)
+void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
 {
     LOCK(cs_main);
     if (vColdPool.size() > COLDPOOL_MAX) {
         std::vector<CBlockEach> vDeployList;
-
+        fs::path csvPath = GetDataDir() / "upload.csv";
+        std::fstream csvStream;
+        csvStream.open(csvPath.string(),ios::app);
+        
         ReadKey();
 
         // LogPrintf("Pkey info: k_enc: %s\n",pkey->k_enc);
         for (auto& item : vColdPool) {
+            csvStream << time(NULL) << "," << item.first.ToString() <<",0";
             CBlock block;
-            fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat", item.ToString());
-            FILE* f = fsbridge::fopen(newBlockPath, "rb");
+            fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat", item.first.ToString());
+            FlatFilePos pos(item.second);
+            FILE* f = fsbridge::fopen(newBlockPath,"rb");
+            fseek(f, pos.nPos,SEEK_SET);
             CAutoFile filein(f, SER_DISK, CLIENT_VERSION);
 
             try {
@@ -61,13 +67,14 @@ void CBlockContractManager::appendColdPool(uint256 hash)
 
             fs::path path = GetDataDir() / "cpor";
             fs::create_directory(path);
-            fs::path TagFile = path / "Tags" / item.ToString().append(".tag");
-            fs::path TFile = path / "Tfiles" / item.ToString().append(".t");
+            fs::path TagFile = path / "Tags" / item.first.ToString().append(".tag");
+            fs::path TFile = path / "Tfiles" / item.first.ToString().append(".t");
             if (fs::exists(TagFile)) continue;
-            local_cpor_tag_file(str, item, pkey);
+            local_cpor_tag_file(str, item.first, pkey);
+            csvStream << time(NULL) << "," << item.first.ToString() <<",1";
             std::vector<unsigned char> t_bin = readFileToUnsignedChar(TFile.string());
             // mTagFile.insert(pair<uint256, FILE*>(item.GetHash(),fsbridge::fopen(path,"r")));
-            std::vector<unsigned char> challenge = SerializeChallenge(cpor_challenge_file(item.ToString(), pkey));
+            std::vector<unsigned char> challenge = SerializeChallenge(cpor_challenge_file(item.first.ToString(), pkey));
             // std::cout <<"Challenge" << HexStr(challenge) <<std::endl;
             // Push To IPFS & get CID back
             CBlockEach cBlockEach{};
@@ -76,7 +83,7 @@ void CBlockContractManager::appendColdPool(uint256 hash)
             cBlockEach.TagCID = AddToIPFS(HexStr(readFileToUnsignedChar(TagFile.string())));
             cBlockEach.firstChallengeCID = AddToIPFS(HexStr(challenge));
             cBlockEach.tfileCID = AddToIPFS(HexStr(t_bin));
-            cBlockEach.hash = item;
+            cBlockEach.hash = item.first;
             vDeployList.push_back(cBlockEach);
         }
 
@@ -88,27 +95,28 @@ void CBlockContractManager::appendColdPool(uint256 hash)
         }
         
         
-
+        csvStream.close();
         // vColdPool.clear();
     }
-    vColdPool.push_back(hash);
+    vColdPool.push_back(pair);
+    
 }
 
-void CBlockContractManager::workingSet(uint256 hash)
+void CBlockContractManager::workingSet(uint256 hash, FlatFilePos pos)
 {
     // std::cout << "workingset size:" << vWorkingSet.size() <<std::endl;
     for (auto it = vWorkingSet.begin(); it != vWorkingSet.end(); ++it) {
-        if (*it == hash) {
+        if (it->first == hash) {
             vWorkingSet.insert(vWorkingSet.begin(), *it);
             vWorkingSet.erase(it);
             return;
         }
     }
     if ((vWorkingSet.size() + 1) * sizeof(uint256) > WORKINGSET_SIZE) {
-        appendColdPool(vWorkingSet.back());
+        appendColdPool(std::pair<uint256,FlatFilePos>(vWorkingSet.back().first,vWorkingSet.back().second));
         vWorkingSet.pop_back();
     }
-    vWorkingSet.push_back(hash);
+    vWorkingSet.push_back(std::pair<uint256,FlatFilePos>(hash, pos));
 }
 
 CBlock CBlockContractManager::lookupWorkingSet(CBlock* block, FlatFilePos pos)
@@ -122,18 +130,29 @@ CBlock CBlockContractManager::lookupWorkingSet(CBlock* block, FlatFilePos pos)
     return nullBlock;
 }
 
-std::string CBlockContractManager::lookupColdBlock(FlatFilePos pos)
+bool CBlockContractManager::lookupColdBlock(FlatFilePos pos)
 {
-    for (auto& it : vColdBlock) {
-        // if(pos.nFile == it.filepos.nFile && pos.nPos == it.filepos.nPos) {
-        //   return it.CID;
-        // }
+    for (auto& it : vWorkingSet) {
+        if(pos.hash == it.first){
+            return true;
+        }
     }
-    return NULL;
+    return false;
 }
 
 void CBlockContractManager::hotColdClassifier(CBlock* block)
 {
+}
+
+CBlock& CBlockContractManager::GetBackFromIPFS(FlatFilePos pos) {
+    CBlock block;
+    for(auto& it: vColdBlock ){
+        if(pos.hash == it.hash) {
+            GetBlockFromIPFS(block,it.CID);
+            
+        }
+    }
+    return block;
 }
 
 // This function is used to parse node stats to map in local
@@ -149,7 +168,9 @@ static void getNodeStat(std::map<std::string, NodeId>& nodes)
 bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
 {
     sort(vStorageContract.begin(), vStorageContract.end(), [](StorageContract& x, StorageContract& y) { return x.nReputation > y.nReputation; });
-
+    std::fstream csvStream;
+    fs::path csvPath = GetDataDir() / "upload.csv";
+    csvStream.open(csvPath.string(),ios::app);
     // Test first contract ipfsvector
     std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
     std::shared_ptr<CWallet> const wallet = wallets.size() == 1 || wallets.size() > 0 ? wallets[0] : nullptr;
@@ -164,6 +185,7 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
 
     std::map<std::string, NodeId> nodes;
     getNodeStat(nodes);
+    bool flag = false;
     for (auto& Itemcontract : vStorageContract) {
         if (Itemcontract.vIPFSNode.size() != 0) {
             for (auto& node : Itemcontract.vIPFSNode) {
@@ -186,13 +208,16 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
                     message.firstChallengeCID = list.firstChallengeCID;
                     message.tFileCID = list.tfileCID;
                     g_connman->ForNodeMsg(nodeid, message);
+                    csvStream << time(NULL) << "," << list.hash.ToString() <<",0";
                 }
+                flag = true;
             }
         }
     }
-    vColdBlock.insert(vColdBlock.end(), vDeployList.begin(), vDeployList.end());
-
-    return true;
+    if(flag)
+        vColdBlock.insert(vColdBlock.end(), vDeployList.begin(), vDeployList.end());
+    csvStream.close();
+    return flag;
 
     // for(auto & item : vStorageContract) {
     //     if(item.nReputation > 0) {
@@ -223,6 +248,9 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
             }
 
             if (contract.getArgs()[0] == "save_block") {
+                std::fstream csvStream;
+                fs::path csvPath = GetDataDir() / "upload.csv";
+                csvStream.open(csvPath.string(),ios::app);
                 // std::cout << "Proof started!" <<std::endl;
                 ReadKey();
                 for (auto& coldblock : vColdBlock) {
@@ -242,8 +270,11 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                             // std::cout << "Proof failed!" <<std::endl;
                             item.nReputation--;
                         }
+                        csvStream << time(NULL) << "," << coldblock.hash.ToString() <<",0";
+
                     }
                 }
+                csvStream.close();
             }
 
             // check proof
