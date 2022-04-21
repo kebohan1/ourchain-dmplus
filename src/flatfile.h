@@ -10,25 +10,30 @@
 
 #include <fs.h>
 #include <serialize.h>
+#include <uint256.h>
 
 struct FlatFilePos
 {
     int nFile;
     unsigned int nPos;
+    uint256 hash;
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(hash);
         READWRITE(VARINT(nFile, VarIntMode::NONNEGATIVE_SIGNED));
         READWRITE(VARINT(nPos));
+        
     }
 
-    FlatFilePos() : nFile(-1), nPos(0) {}
+    FlatFilePos() : nFile(-1), nPos(0), hash() {}
 
-    FlatFilePos(int nFileIn, unsigned int nPosIn) :
+    FlatFilePos(int nFileIn, unsigned int nPosIn, uint256 nHashIn) :
         nFile(nFileIn),
-        nPos(nPosIn)
+        nPos(nPosIn),
+        hash(nHashIn)
     {}
 
     friend bool operator==(const FlatFilePos &a, const FlatFilePos &b) {
@@ -69,11 +74,14 @@ public:
     /** Get the name of the file at the given position. */
     fs::path FileName(const FlatFilePos& pos) const;
     fs::path FileName(unsigned int pos) const;
+    fs::path nFileName(const FlatFilePos& pos) const;
 
 
     /** Open a handle to the file at the given position. */
     FILE* Open(const FlatFilePos& pos, bool read_only = false);
     FILE* Open(unsigned int pos,bool read_only = false);
+    FILE* nOpen(const FlatFilePos& pos,bool read_only = false);
+
 
     bool Remove(unsigned int pos);
     bool RenameTmp(unsigned int pos);

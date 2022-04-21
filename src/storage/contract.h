@@ -85,8 +85,8 @@ class CBlockEach {
 class CBlockContractManager {
 
   protected:
-    std::vector<std::pair<int,CBlock>> vColdPool;
-    std::vector<std::pair<int,CBlock>> vWorkingSet;
+    std::vector<uint256> vColdPool;
+    std::vector<uint256> vWorkingSet;
     std::vector<CBlockEach> vColdBlock;
     std::vector<StorageContract> vStorageContract;
     int n_max_cold_pool = 0;
@@ -102,7 +102,7 @@ class CBlockContractManager {
     //  InitKey();
     //   LogPrintf("init cmp\n"); 
     };
-    void appendColdPool(int,const CBlock);
+    void appendColdPool(uint256 hash);
     bool deployContract(std::vector<CBlockEach> &);
     void receiveContract(IpfsContract);
     CBlock* retrieveBlock(uint256);
@@ -140,7 +140,7 @@ class CBlockContractManager {
     void InitParams();
     int ReadKey();
 
-    void workingSet(int nHeight,CBlock* block);
+    void workingSet(uint256 hash);
 
     void hotColdClassifier(CBlock* block);
     std::string lookupColdBlock(FlatFilePos pos);

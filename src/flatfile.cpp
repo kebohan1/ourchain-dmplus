@@ -31,6 +31,11 @@ fs::path FlatFileSeq::FileName(const FlatFilePos& pos) const
     return m_dir / strprintf("%s%05u.dat", m_prefix, pos.nFile);
 }
 
+fs::path FlatFileSeq::nFileName(const FlatFilePos& pos) const
+{
+    return m_dir / strprintf("%s_%s.dat", m_prefix, pos.hash.ToString());
+}
+
 fs::path FlatFileSeq::FileName(unsigned int pos) const
 {
     return m_dir / strprintf("%s%05u.dat", m_prefix, pos);
@@ -42,6 +47,28 @@ FILE* FlatFileSeq::Open(const FlatFilePos& pos, bool read_only)
         return nullptr;
     }
     fs::path path = FileName(pos);
+    fs::create_directories(path.parent_path());
+    FILE* file = fsbridge::fopen(path, read_only ? "rb": "rb+");
+    if (!file && !read_only)
+        file = fsbridge::fopen(path, "wb+");
+    if (!file) {
+        LogPrintf("Unable to open file %s\n", path.string());
+        return nullptr;
+    }
+    if (pos.nPos && fseek(file, pos.nPos, SEEK_SET)) {
+        LogPrintf("Unable to seek to position %u of %s\n", pos.nPos, path.string());
+        fclose(file);
+        return nullptr;
+    }
+    return file;
+}
+
+FILE* FlatFileSeq::nOpen(const FlatFilePos& pos, bool read_only)
+{
+    if (pos.IsNull()) {
+        return nullptr;
+    }
+    fs::path path = nFileName(pos);
     fs::create_directories(path.parent_path());
     FILE* file = fsbridge::fopen(path, read_only ? "rb": "rb+");
     if (!file && !read_only)
@@ -153,7 +180,7 @@ size_t FlatFileSeq::Allocate(const size_t tempFileSize, bool& out_of_space){
 
 bool FlatFileSeq::Flush(const FlatFilePos& pos, bool finalize)
 {
-    FILE* file = Open(FlatFilePos(pos.nFile, 0)); // Avoid fseek to nPos
+    FILE* file = nOpen(FlatFilePos(pos.nFile, 0, pos.hash)); // Avoid fseek to nPos
     if (!file) {
         return error("%s: failed to open file %d", __func__, pos.nFile);
     }

@@ -1230,13 +1230,13 @@ void ProcessIPFSBlock(std::vector<CStorageMessage>& msg) {
 
 static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart,int nHeight)
 {
-    // // Add block to IPFS
-    // string blockinfo = "";
-    // blockinfo.append(block.ToString());
-    // AddToIPFS(blockinfo);
 
     // Open history file to append
-    CAutoFile fileout(OpenBlockFile(pos), SER_DISK, CLIENT_VERSION);
+    // CAutoFile fileout(OpenBlockFile(pos), SER_DISK, CLIENT_VERSION);
+    // fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat",pos.hash.ToString());
+    // FILE* f = fsbridge::fopen(newBlockPath, "wb+");
+
+    CAutoFile fileout(OpenNewBlockFile(pos),SER_DISK,CLIENT_VERSION);
     if (fileout.IsNull())
         return error("WriteBlockToDisk: OpenBlockFile failed");
 
@@ -1269,7 +1269,8 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
            cfilemanager >> cmanager ;
         }
     }
-    cmanager.appendColdPool(nHeight,block);
+    // cmanager.appendColdPool(block.GetHash());
+    cmanager.workingSet(block.GetHash());
     CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath ,"wb"), SER_DISK, CLIENT_VERSION);
     nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
     cfilemanagerOut << cmanager << nSize;
@@ -1286,6 +1287,7 @@ static bool WriteBlockToTempBlk(const CBlock& block, unsigned int& pos, const CM
 
     // Open history file to append
     CAutoFile fileout(OpenBlockFile(pos), SER_DISK, CLIENT_VERSION);
+
     if (fileout.IsNull())
         return error("WriteBlockToDisk: OpenBlockFile failed");
 
@@ -1307,7 +1309,12 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     block.SetNull();
 
     // Open history file to read
-    CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    // CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat",pos.hash.ToString());
+    FILE* f = fsbridge::fopen(newBlockPath, "rb");
+    fseek(f, pos.nPos, SEEK_SET);
+    CAutoFile filein(OpenNewBlockFile(pos, true),SER_DISK,CLIENT_VERSION);
+    
     if (filein.IsNull())
         return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
 
@@ -1355,7 +1362,7 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
 {
     FlatFilePos hpos = pos;
     hpos.nPos -= 8; // Seek back 8 bytes for meta header
-    CAutoFile filein(OpenBlockFile(hpos, true), SER_DISK, CLIENT_VERSION);
+    CAutoFile filein(OpenNewBlockFile(hpos, true), SER_DISK, CLIENT_VERSION);
     if (filein.IsNull()) {
         return error("%s: OpenBlockFile failed for %s", __func__, pos.ToString());
     }
@@ -1900,17 +1907,17 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
 void static FlushBlockFile(bool fFinalize = false)
 {
-    LOCK(cs_LastBlockFile);
+    // LOCK(cs_LastBlockFile);
 
-    FlatFilePos block_pos_old(nLastBlockFile, vinfoBlockFile[nLastBlockFile].nSize);
-    FlatFilePos undo_pos_old(nLastBlockFile, vinfoBlockFile[nLastBlockFile].nUndoSize);
+    // FlatFilePos block_pos_old(nLastBlockFile, vinfoBlockFile[nLastBlockFile].nSize);
+    // FlatFilePos undo_pos_old(nLastBlockFile, vinfoBlockFile[nLastBlockFile].nUndoSize, uint256());
 
-    bool status = true;
-    status &= BlockFileSeq().Flush(block_pos_old, fFinalize);
-    status &= UndoFileSeq().Flush(undo_pos_old, fFinalize);
-    if (!status) {
-        AbortNode("Flushing block file to disk failed. This is likely the result of an I/O error.");
-    }
+    // bool status = true;
+    // status &= BlockFileSeq().Flush(block_pos_old, fFinalize);
+    // status &= UndoFileSeq().Flush(undo_pos_old, fFinalize);
+    // if (!status) {
+    //     AbortNode("Flushing block file to disk failed. This is likely the result of an I/O error.");
+    // }
 }
 
 static bool FindUndoPos(CValidationState& state, int nFile, FlatFilePos& pos, unsigned int nAddSize);
@@ -2364,6 +2371,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     //      }
     //  }
 
+    //The function write revxxx.dat
     if (!WriteUndoDataForBlock(blockundo, state, pindex, chainparams))
         return false;
 
@@ -2441,36 +2449,36 @@ bool CChainState::FlushStateToDisk(
             // Combine all conditions that result in a full cache flush.
             fDoFullFlush = (mode == FlushStateMode::ALWAYS) || fCacheLarge || fCacheCritical || fPeriodicFlush || fFlushForPrune;
             // Write blocks and block index to disk.
-            if (fDoFullFlush || fPeriodicWrite) {
-                // Depend on nMinDiskSpace to ensure we can write block index
-                if (!CheckDiskSpace(GetBlocksDir())) {
-                    return AbortNode(state, "Disk space is low!", _("Error: Disk space is low!"));
-                }
-                // First make sure all block and undo data is flushed to disk.
-                FlushBlockFile();
-                // Then update all block file information (which may refer to block and undo files).
-                {
-                    std::vector<std::pair<int, const CBlockFileInfo*>> vFiles;
-                    vFiles.reserve(setDirtyFileInfo.size());
-                    for (std::set<int>::iterator it = setDirtyFileInfo.begin(); it != setDirtyFileInfo.end();) {
-                        vFiles.push_back(std::make_pair(*it, &vinfoBlockFile[*it]));
-                        setDirtyFileInfo.erase(it++);
-                    }
-                    std::vector<const CBlockIndex*> vBlocks;
-                    vBlocks.reserve(setDirtyBlockIndex.size());
-                    for (std::set<CBlockIndex*>::iterator it = setDirtyBlockIndex.begin(); it != setDirtyBlockIndex.end();) {
-                        vBlocks.push_back(*it);
-                        setDirtyBlockIndex.erase(it++);
-                    }
-                    if (!pblocktree->WriteBatchSync(vFiles, nLastBlockFile, vBlocks)) {
-                        return AbortNode(state, "Failed to write to block index database");
-                    }
-                }
+            // if (fDoFullFlush || fPeriodicWrite) {
+            //     // Depend on nMinDiskSpace to ensure we can write block index
+            //     if (!CheckDiskSpace(GetBlocksDir())) {
+            //         return AbortNode(state, "Disk space is low!", _("Error: Disk space is low!"));
+            //     }
+            //     // First make sure all block and undo data is flushed to disk.
+            //     FlushBlockFile();
+            //     // Then update all block file information (which may refer to block and undo files).
+            //     {
+            //         std::vector<std::pair<int, const CBlockFileInfo*>> vFiles;
+            //         vFiles.reserve(setDirtyFileInfo.size());
+            //         for (std::set<int>::iterator it = setDirtyFileInfo.begin(); it != setDirtyFileInfo.end();) {
+            //             vFiles.push_back(std::make_pair(*it, &vinfoBlockFile[*it]));
+            //             setDirtyFileInfo.erase(it++);
+            //         }
+            //         std::vector<const CBlockIndex*> vBlocks;
+            //         vBlocks.reserve(setDirtyBlockIndex.size());
+            //         for (std::set<CBlockIndex*>::iterator it = setDirtyBlockIndex.begin(); it != setDirtyBlockIndex.end();) {
+            //             vBlocks.push_back(*it);
+            //             setDirtyBlockIndex.erase(it++);
+            //         }
+            //         if (!pblocktree->WriteBatchSync(vFiles, nLastBlockFile, vBlocks)) {
+            //             return AbortNode(state, "Failed to write to block index database");
+            //         }
+            //     }
                 // Finally remove any pruned files
-                if (fFlushForPrune)
-                    UnlinkPrunedFiles(setFilesToPrune);
-                nLastWrite = nNow;
-            }
+            //     if (fFlushForPrune)
+            //         UnlinkPrunedFiles(setFilesToPrune);
+            //     nLastWrite = nNow;
+            // }
             // Flush best chain related state. This can only be done if the blocks / block index write was also done.
             if (fDoFullFlush && !pcoinsTip->GetBestBlock().IsNull()) {
                 // Typical Coin structures on disk are around 48 bytes in size.
@@ -3838,30 +3846,16 @@ static FlatFilePos SaveBlockToDisk(const CBlock& block, int nHeight, const CChai
         return FlatFilePos();
     }
     if (dbp == nullptr) {
-        // Add block json to IPFS (moved from writeblockToDisk) 2019/8/13
-        // Change json construction function to solve memory leak problem.
-        // author: Hank
-        // time  : 2019/8/17
-        // cout << "Processing Height: " << nHeight << endl;
-        // json::value root;
-        // CppRestConstructBlockToJson(block, root);
-        // string blockjson = root.serialize();
-        // string ResponseJson = AddToIPFS(blockjson);
-        // // sometimes this command doesn't work.... Hank 20190817
-        // // cout << blockjson << endl;
-        // // Only need the hash value from the response json.  That's why I did the following things to pop it. Hank 20190817
-        // stringstream_t s;
-        // s << ResponseJson;
-        // json::value Response = json::value::parse(s);
-        // string IPFSHash;
-        // IPFSHash = Response["Hash"].serialize();
-        // IPFSHash.erase(0, IPFSHash.find_first_not_of("\""));
-        // IPFSHash.erase(IPFSHash.find_last_not_of("\"") + 1);
-        // //cout << "IPFSHash: " << IPFSHash << endl;
-
-        // // ---- Write IPFS-HASH To Disk ----Hank 20190730
-        // WriteIPFSHashToDisk(to_string(nHeight), IPFSHash);
-        /* Do not use levelDB ----Hanry 20191209*/
+        /**
+         * @brief We adapt our working set here to classfiy hot block and cold block.
+         * Caused by bitcoin storing block mechanism, we could not remove the specific
+         * block with their scheme. Therefore, we split each block to each dat and named
+         * it with its merkle hash. However, if use this framework to store, bitcoin framework
+         * could and should not use reindex caused by rev use the same flatfilepos to reverse
+         * 
+         */
+        blockPos.hash = block.GetHash();
+        blockPos.nPos = 0;
         if (!WriteBlockToDisk(block, blockPos, chainparams.MessageStart(),nHeight)) {
             AbortNode("Failed to write block");
             return FlatFilePos();
@@ -3870,6 +3864,8 @@ static FlatFilePos SaveBlockToDisk(const CBlock& block, int nHeight, const CChai
     }
     return blockPos;
 }
+
+
 
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
 bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock)
@@ -4068,12 +4064,12 @@ void PruneOneBlockFile(const int fileNumber)
 
 void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune)
 {
-    for (std::set<int>::iterator it = setFilesToPrune.begin(); it != setFilesToPrune.end(); ++it) {
-        FlatFilePos pos(*it, 0);
-        fs::remove(BlockFileSeq().FileName(pos));
-        fs::remove(UndoFileSeq().FileName(pos));
-        LogPrintf("Prune: %s deleted blk/rev (%05u)\n", __func__, *it);
-    }
+    // for (std::set<int>::iterator it = setFilesToPrune.begin(); it != setFilesToPrune.end(); ++it) {
+    //     FlatFilePos pos(*it, 0);
+    //     fs::remove(BlockFileSeq().FileName(pos));
+    //     fs::remove(UndoFileSeq().FileName(pos));
+    //     LogPrintf("Prune: %s deleted blk/rev (%05u)\n", __func__, *it);
+    // }
 }
 
 /* Calculate the block/rev files to delete based on height specified by user with RPC command pruneblockchain */
@@ -4200,6 +4196,12 @@ FILE* OpenBlockFile(unsigned int nPos, bool fReadOnly) {
     return BlockFileSeq().Open(nPos, fReadOnly);
 }
 
+FILE* OpenNewBlockFile(const FlatFilePos& pos, bool fReadOnly)
+{
+    return BlockFileSeq().nOpen(pos, fReadOnly);
+}
+
+
 /** Open an undo file (rev?????.dat) */
 static FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly)
 {
@@ -4282,51 +4284,51 @@ bool CChainState::LoadBlockIndex(const Consensus::Params& consensus_params, CBlo
 
 bool static LoadBlockIndexDB(const CChainParams& chainparams) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
-    if (!::ChainstateActive().LoadBlockIndex(chainparams.GetConsensus(), *pblocktree))
-        return false;
+    // if (!::ChainstateActive().LoadBlockIndex(chainparams.GetConsensus(), *pblocktree))
+    //     return false;
 
-    // Load block file info
-    pblocktree->ReadLastBlockFile(nLastBlockFile);
-    vinfoBlockFile.resize(nLastBlockFile + 1);
-    LogPrintf("%s: last block file = %i\n", __func__, nLastBlockFile);
-    for (int nFile = 0; nFile <= nLastBlockFile; nFile++) {
-        pblocktree->ReadBlockFileInfo(nFile, vinfoBlockFile[nFile]);
-    }
-    LogPrintf("%s: last block file info: %s\n", __func__, vinfoBlockFile[nLastBlockFile].ToString());
-    for (int nFile = nLastBlockFile + 1; true; nFile++) {
-        CBlockFileInfo info;
-        if (pblocktree->ReadBlockFileInfo(nFile, info)) {
-            vinfoBlockFile.push_back(info);
-        } else {
-            break;
-        }
-    }
+    // // Load block file info
+    // pblocktree->ReadLastBlockFile(nLastBlockFile);
+    // vinfoBlockFile.resize(nLastBlockFile + 1);
+    // LogPrintf("%s: last block file = %i\n", __func__, nLastBlockFile);
+    // for (int nFile = 0; nFile <= nLastBlockFile; nFile++) {
+    //     pblocktree->ReadBlockFileInfo(nFile, vinfoBlockFile[nFile]);
+    // }
+    // LogPrintf("%s: last block file info: %s\n", __func__, vinfoBlockFile[nLastBlockFile].ToString());
+    // for (int nFile = nLastBlockFile + 1; true; nFile++) {
+    //     CBlockFileInfo info;
+    //     if (pblocktree->ReadBlockFileInfo(nFile, info)) {
+    //         vinfoBlockFile.push_back(info);
+    //     } else {
+    //         break;
+    //     }
+    // }
 
-    // Check presence of blk files
-    LogPrintf("Checking all blk files are present...\n");
-    std::set<int> setBlkDataFiles;
-    for (const std::pair<const uint256, CBlockIndex*>& item : mapBlockIndex) {
-        CBlockIndex* pindex = item.second;
-        if (pindex->nStatus & BLOCK_HAVE_DATA) {
-            setBlkDataFiles.insert(pindex->nFile);
-        }
-    }
-    for (std::set<int>::iterator it = setBlkDataFiles.begin(); it != setBlkDataFiles.end(); it++) {
-        FlatFilePos pos(*it, 0);
-        if (CAutoFile(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION).IsNull()) {
-            return false;
-        }
-    }
+    // // Check presence of blk files
+    // LogPrintf("Checking all blk files are present...\n");
+    // std::set<int> setBlkDataFiles;
+    // for (const std::pair<const uint256, CBlockIndex*>& item : mapBlockIndex) {
+    //     CBlockIndex* pindex = item.second;
+    //     if (pindex->nStatus & BLOCK_HAVE_DATA) {
+    //         setBlkDataFiles.insert(pindex->nFile);
+    //     }
+    // }
+    // for (std::set<int>::iterator it = setBlkDataFiles.begin(); it != setBlkDataFiles.end(); it++) {
+    //     FlatFilePos pos(*it, 0);
+    //     if (CAutoFile(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION).IsNull()) {
+    //         return false;
+    //     }
+    // }
 
-    // Check whether we have ever pruned block & undo files
-    pblocktree->ReadFlag("prunedblockfiles", fHavePruned);
-    if (fHavePruned)
-        LogPrintf("LoadBlockIndexDB(): Block files have previously been pruned\n");
+    // // Check whether we have ever pruned block & undo files
+    // pblocktree->ReadFlag("prunedblockfiles", fHavePruned);
+    // if (fHavePruned)
+    //     LogPrintf("LoadBlockIndexDB(): Block files have previously been pruned\n");
 
-    // Check whether we need to continue reindexing
-    bool fReindexing = false;
-    pblocktree->ReadReindexing(fReindexing);
-    if (fReindexing) fReindex = true;
+    // // Check whether we need to continue reindexing
+    // bool fReindexing = false;
+    // pblocktree->ReadReindexing(fReindexing);
+    // if (fReindexing) fReindex = true;
 
     return true;
 }
@@ -4746,11 +4748,11 @@ bool LoadBlockIndex(const CChainParams& chainparams)
 {
     // Load block index from databases
     bool needs_init = fReindex;
-    if (!fReindex) {
-        bool ret = LoadBlockIndexDB(chainparams);
-        if (!ret) return false;
-        needs_init = mapBlockIndex.empty();
-    }
+    // if (!fReindex) {
+    //     bool ret = LoadBlockIndexDB(chainparams);
+    //     if (!ret) return false;
+    //     needs_init = mapBlockIndex.empty();
+    // }
 
     if (needs_init) {
         // Everything here is for *new* reindex/DBs. Thus, though
@@ -4785,7 +4787,6 @@ bool CChainState::LoadGenesisBlock(const CChainParams& chainparams)
     } catch (const std::runtime_error& e) {
         return error("%s: failed to write genesis block: %s", __func__, e.what());
     }
-
     return true;
 }
 

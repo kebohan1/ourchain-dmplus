@@ -47,6 +47,7 @@ public:
     unsigned int nHeightLast;  //!< highest height of block in file
     uint64_t nTimeFirst;       //!< earliest time of block in file
     uint64_t nTimeLast;        //!< latest time of block in file
+    uint256 hash;
 
     ADD_SERIALIZE_METHODS;
 
@@ -59,6 +60,7 @@ public:
         READWRITE(VARINT(nHeightLast));
         READWRITE(VARINT(nTimeFirst));
         READWRITE(VARINT(nTimeLast));
+        READWRITE(hash);
     }
 
      void SetNull() {
@@ -235,6 +237,7 @@ public:
         if (nStatus & BLOCK_HAVE_DATA) {
             ret.nFile = nFile;
             ret.nPos  = nDataPos;
+            ret.hash = *phashBlock;
         }
         return ret;
     }

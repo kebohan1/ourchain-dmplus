@@ -13,15 +13,15 @@
 // #include <contract/cpor/cpor.h>
 // #include <storage/cpor.h>
 
-#include <netmessagemaker.h>
-#include <netbase.h>
 #include <net.h>
+#include <netbase.h>
+#include <netmessagemaker.h>
 #include <storage/ipfs_interface.h>
 
 using namespace std;
 
 #define COLDPOOL_MAX 1
-#define WORKINGSET_SIZE 10*sizeof(CBlock)
+#define WORKINGSET_SIZE 10 * sizeof(uint256)
 
 // TODO: select ipfs amount should be global setting
 int ipfs_max_select = 4;
@@ -29,119 +29,128 @@ int ipfs_max_select = 4;
 int ipfs_no_reputation_rate = 0.25;
 
 
-
-void CBlockContractManager::appendColdPool(int nHeight,const CBlock pblock)
+void CBlockContractManager::appendColdPool(uint256 hash)
 {
     LOCK(cs_main);
     if (vColdPool.size() > COLDPOOL_MAX) {
-        std::vector<std::string> vSerializeColdPool;
-        std::map<uint256, FILE*> mTagFile;
         std::vector<CBlockEach> vDeployList;
 
         ReadKey();
 
         // LogPrintf("Pkey info: k_enc: %s\n",pkey->k_enc);
         for (auto& item : vColdPool) {
+            CBlock block;
+            fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat", item.ToString());
+            FILE* f = fsbridge::fopen(newBlockPath, "rb");
+            CAutoFile filein(f, SER_DISK, CLIENT_VERSION);
+
+            try {
+                filein >> block;
+            } catch (const std::exception& e) {
+                return ;
+            }
+
 
             // CBLOCK SERIALIZE
             json::value root;
-            CppRestConstructBlockToJson(item.second, root);
+            CppRestConstructBlockToJson(block, root);
             std::string str = root.serialize();
-            vSerializeColdPool.push_back(root.serialize());
 
             // //CPOR tag
-            
 
-            fs::path path = GetDataDir() / "cpor" ;
+
+            fs::path path = GetDataDir() / "cpor";
             fs::create_directory(path);
-            fs::path TagFile = path /"Tags"/ item.second.GetHash().ToString().append(".tag");
-            fs::path TFile = path /"Tfiles"/ item.second.GetHash().ToString().append(".t");
-            if(fs::exists(TagFile)) continue;
-            local_cpor_tag_file(str, item.second.GetHash(), pkey);
+            fs::path TagFile = path / "Tags" / item.ToString().append(".tag");
+            fs::path TFile = path / "Tfiles" / item.ToString().append(".t");
+            if (fs::exists(TagFile)) continue;
+            local_cpor_tag_file(str, item, pkey);
             std::vector<unsigned char> t_bin = readFileToUnsignedChar(TFile.string());
-            // mTagFile.insert(pair<uint256, FILE*>(item.second.GetHash(),fsbridge::fopen(path,"r")));
-            std::vector<unsigned char> challenge = SerializeChallenge(cpor_challenge_file(item.second.GetHash().ToString(),pkey));
+            // mTagFile.insert(pair<uint256, FILE*>(item.GetHash(),fsbridge::fopen(path,"r")));
+            std::vector<unsigned char> challenge = SerializeChallenge(cpor_challenge_file(item.ToString(), pkey));
             // std::cout <<"Challenge" << HexStr(challenge) <<std::endl;
-            //Push To IPFS & get CID back
+            // Push To IPFS & get CID back
             CBlockEach cBlockEach{};
-            
+
             cBlockEach.CID = AddToIPFS(str);
             cBlockEach.TagCID = AddToIPFS(HexStr(readFileToUnsignedChar(TagFile.string())));
             cBlockEach.firstChallengeCID = AddToIPFS(HexStr(challenge));
             cBlockEach.tfileCID = AddToIPFS(HexStr(t_bin));
-            cBlockEach.hash = item.second.GetHash();
-            cBlockEach.nHeight = item.first;
+            cBlockEach.hash = item;
             vDeployList.push_back(cBlockEach);
-
-            
         }
 
         // Find Contract To deploy
         // If yes:
-        std::cout << "deploy" <<std::endl;
-        if(deployContract(vDeployList)) vColdPool.clear();
-
-        // vColdPool.clear();
+        std::cout << "deploy" << std::endl;
+        if (deployContract(vDeployList)) {
+          vColdPool.clear();
+        }
+        
         
 
+        // vColdPool.clear();
     }
-    vColdPool.push_back(std::pair<int,CBlock>(nHeight,pblock));
+    vColdPool.push_back(hash);
 }
 
-void CBlockContractManager::workingSet(int nHeight,CBlock* block){
-  std::cout << "workingset size:" << vWorkingSet.size() <<std::endl;
-  for(auto it = vWorkingSet.begin();it != vWorkingSet.end(); ++it){
-    if(it->second.GetHash() == block->GetHash()) {
-      vWorkingSet.insert(vWorkingSet.begin(),*it);
-      vWorkingSet.erase(it);
-      return;
+void CBlockContractManager::workingSet(uint256 hash)
+{
+    // std::cout << "workingset size:" << vWorkingSet.size() <<std::endl;
+    for (auto it = vWorkingSet.begin(); it != vWorkingSet.end(); ++it) {
+        if (*it == hash) {
+            vWorkingSet.insert(vWorkingSet.begin(), *it);
+            vWorkingSet.erase(it);
+            return;
+        }
     }
-  }
-  if((vWorkingSet.size() + 1) * sizeof(*block) > WORKINGSET_SIZE) {
-    appendColdPool(vWorkingSet.back().first,vWorkingSet.back().second);
-    vWorkingSet.pop_back();
-  }
-  vWorkingSet.push_back(std::pair<int,CBlock>(nHeight,*block));
+    if ((vWorkingSet.size() + 1) * sizeof(uint256) > WORKINGSET_SIZE) {
+        appendColdPool(vWorkingSet.back());
+        vWorkingSet.pop_back();
+    }
+    vWorkingSet.push_back(hash);
 }
 
-CBlock CBlockContractManager::lookupWorkingSet(CBlock* block, FlatFilePos pos) {
-  CBlock nullBlock;
-  for(auto it = vWorkingSet.begin();it != vWorkingSet.end(); ++it){
-    // if(it->first.nFile == pos.nFile && it->first.nPos == pos.nPos) {
-    //   return *(it->second);
-    // }
-  }
-  return nullBlock;
+CBlock CBlockContractManager::lookupWorkingSet(CBlock* block, FlatFilePos pos)
+{
+    CBlock nullBlock;
+    for (auto it = vWorkingSet.begin(); it != vWorkingSet.end(); ++it) {
+        // if(it->first.nFile == pos.nFile && it->first.nPos == pos.nPos) {
+        //   return *(it->second);
+        // }
+    }
+    return nullBlock;
 }
 
-std::string CBlockContractManager::lookupColdBlock(FlatFilePos pos) {
-  for(auto &it : vColdBlock) {
-    // if(pos.nFile == it.filepos.nFile && pos.nPos == it.filepos.nPos) {
-    //   return it.CID;
-    // }
-  }
-  return NULL;
+std::string CBlockContractManager::lookupColdBlock(FlatFilePos pos)
+{
+    for (auto& it : vColdBlock) {
+        // if(pos.nFile == it.filepos.nFile && pos.nPos == it.filepos.nPos) {
+        //   return it.CID;
+        // }
+    }
+    return NULL;
 }
 
-void CBlockContractManager::hotColdClassifier(CBlock* block) {
-
+void CBlockContractManager::hotColdClassifier(CBlock* block)
+{
 }
 
-//This function is used to parse node stats to map in local
-static void getNodeStat(std::map<std::string, NodeId>& nodes) {
-  std::vector<CNodeStats>nodeStats;
-  g_connman->GetNodeStats(nodeStats);
-  for(auto &node: nodeStats){
-    nodes.insert(std::pair<std::string, NodeId>(node.addr.ToStringIPPort(),node.nodeid));
-  }
+// This function is used to parse node stats to map in local
+static void getNodeStat(std::map<std::string, NodeId>& nodes)
+{
+    std::vector<CNodeStats> nodeStats;
+    g_connman->GetNodeStats(nodeStats);
+    for (auto& node : nodeStats) {
+        nodes.insert(std::pair<std::string, NodeId>(node.addr.ToStringIPPort(), node.nodeid));
+    }
 }
 
-bool CBlockContractManager::deployContract(std::vector<CBlockEach> &vDeployList) {
+bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
+{
+    sort(vStorageContract.begin(), vStorageContract.end(), [](StorageContract& x, StorageContract& y) { return x.nReputation > y.nReputation; });
 
-
-    sort(vStorageContract.begin(), vStorageContract.end(), [] (StorageContract &x, StorageContract &y) { return x.nReputation > y.nReputation; });
-
-    //Test first contract ipfsvector
+    // Test first contract ipfsvector
     std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
     std::shared_ptr<CWallet> const wallet = wallets.size() == 1 || wallets.size() > 0 ? wallets[0] : nullptr;
 
@@ -149,43 +158,42 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach> &vDeployList)
     CPubKey newKey;
 
     pwallet->GetKeyFromPool(newKey);
-    
+
     std::cout << "Contract Size: " << vStorageContract.size() << std::endl;
-    if(vStorageContract.size() == 0) return false;
+    if (vStorageContract.size() == 0) return false;
 
     std::map<std::string, NodeId> nodes;
     getNodeStat(nodes);
-    for(auto &Itemcontract : vStorageContract) {
-      if(Itemcontract.vIPFSNode.size()!=0) {
-        for(auto &node:Itemcontract.vIPFSNode){
-          // CNode newNode()
-          // std::cout << "discontruct ipfsnode vector" <<std::endl;
-          CAddress addrConnect;
+    for (auto& Itemcontract : vStorageContract) {
+        if (Itemcontract.vIPFSNode.size() != 0) {
+            for (auto& node : Itemcontract.vIPFSNode) {
+                // CNode newNode()
+                // std::cout << "discontruct ipfsnode vector" <<std::endl;
+                CAddress addrConnect;
 
-          if(nodes.find(node.second.ip) == nodes.end()) {
-            g_connman->AddNode(node.second.ip);
-            getNodeStat(nodes);
-
-          }
-          NodeId nodeid = nodes.find(node.second.ip)->second;
-          LogPrintf("Node IP: %s, node id: %d\n",node.second.ip, nodeid);
-          std::vector<CStorageMessage> vMessage;
-          for(auto & list: vDeployList) {
-            CStorageMessage message;
-            message.hash = list.hash;
-            message.CID = list.CID;
-            message.TagCID = list.TagCID;
-            message.firstChallengeCID = list.firstChallengeCID;
-            message.tFileCID = list.tfileCID;
-            g_connman->ForNodeMsg(nodeid, message);
-          }
+                if (nodes.find(node.second.ip) == nodes.end()) {
+                    g_connman->AddNode(node.second.ip);
+                    getNodeStat(nodes);
+                }
+                NodeId nodeid = nodes.find(node.second.ip)->second;
+                LogPrintf("Node IP: %s, node id: %d\n", node.second.ip, nodeid);
+                std::vector<CStorageMessage> vMessage;
+                for (auto& list : vDeployList) {
+                    CStorageMessage message;
+                    message.hash = list.hash;
+                    message.CID = list.CID;
+                    message.TagCID = list.TagCID;
+                    message.firstChallengeCID = list.firstChallengeCID;
+                    message.tFileCID = list.tfileCID;
+                    g_connman->ForNodeMsg(nodeid, message);
+                }
+            }
         }
-      }
     }
-    vColdBlock.insert(vColdBlock.end(),vDeployList.begin(),vDeployList.end());
+    vColdBlock.insert(vColdBlock.end(), vDeployList.begin(), vDeployList.end());
 
     return true;
-    
+
     // for(auto & item : vStorageContract) {
     //     if(item.nReputation > 0) {
     //       for(auto & ipfsNode : item.vIPFSNode) {
@@ -195,74 +203,74 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach> &vDeployList)
     //     }
     // }
 }
-void CBlockContractManager::receiveContract(IpfsContract contract) {
-  LOCK(cs_main);
-  StorageContract s;
-  std::cout << "Recieve a contract~" << std::endl;
-  for(auto& item: vStorageContract) {
-    std::cout << "Contract Addr: " << contract.getAddress().ToString()<< std::endl;
-    if(item.hash == contract.getAddress()) {
-      std::cout << "Contract exist! just append nodes" <<std::endl;
-      //check new ipfsnode sign_up
-      for(int i = 0; i< contract.theContractState.num_ipfsnode; ++i) { 
-        if(item.vIPFSNode.find(uint256S(contract.aIpfsNode[i].address))== item.vIPFSNode.end()) {
-          CIPFSNode ipfsNode;
-          ipfsNode.pubKey = uint256S(contract.aIpfsNode[i].address);
-          ipfsNode.ip = contract.aIpfsNode[i].ip ;
-          item.vIPFSNode.insert(std::pair<uint256, CIPFSNode>(ipfsNode.pubKey,ipfsNode));
-        }
-      }
-      
-      if(contract.getArgs()[0] == "save_block") {
-        // std::cout << "Proof started!" <<std::endl;
-        ReadKey();
-        for(auto& coldblock : vColdBlock){
-          //TODO: 0419 following if is not jump in
-          
-          if(coldblock.hash.ToString() == contract.getArgs()[1]) {
-            // std::cout << "Source merkle: " << coldblock.hash.ToString() << ",Output merkle:" << contract.getArgs()[1] <<std::endl;
-            int ret = cpor_verify_file(coldblock.hash.ToString(),
-                                      UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[6]))),
-                                      UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[4]))),
-                                      pkey);
-            // LogPrintf("cpor_verify result: %d\n", ret);
-            if(ret == 1) {
-              // std::cout << "Proof success!" <<std::endl;
-              item.nReputation++;
-            } else {
-              // std::cout << "Proof failed!" <<std::endl;
-              item.nReputation--;
+void CBlockContractManager::receiveContract(IpfsContract contract)
+{
+    LOCK(cs_main);
+    StorageContract s;
+    // std::cout << "Recieve a contract~" << std::endl;
+    for (auto& item : vStorageContract) {
+        // std::cout << "Contract Addr: " << contract.getAddress().ToString()<< std::endl;
+        if (item.hash == contract.getAddress()) {
+            // std::cout << "Contract exist! just append nodes" <<std::endl;
+            // check new ipfsnode sign_up
+            for (int i = 0; i < contract.theContractState.num_ipfsnode; ++i) {
+                if (item.vIPFSNode.find(uint256S(contract.aIpfsNode[i].address)) == item.vIPFSNode.end()) {
+                    CIPFSNode ipfsNode;
+                    ipfsNode.pubKey = uint256S(contract.aIpfsNode[i].address);
+                    ipfsNode.ip = contract.aIpfsNode[i].ip;
+                    item.vIPFSNode.insert(std::pair<uint256, CIPFSNode>(ipfsNode.pubKey, ipfsNode));
+                }
             }
-          }
-        }
-        
-      }
 
-      //check proof
-      // for(int i = 0; i< contract.theContractState.num_blocks; ++i) {
-      //   if()
-      // }
-      return;
-    } 
-  }
-  for(int i = 0; i < contract.theContractState.num_ipfsnode; ++i) {
+            if (contract.getArgs()[0] == "save_block") {
+                // std::cout << "Proof started!" <<std::endl;
+                ReadKey();
+                for (auto& coldblock : vColdBlock) {
+                    // TODO: 0419 following if is not jump in
+
+                    if (coldblock.hash.ToString() == contract.getArgs()[1]) {
+                        // std::cout << "Source merkle: " << coldblock.hash.ToString() << ",Output merkle:" << contract.getArgs()[1] <<std::endl;
+                        int ret = cpor_verify_file(coldblock.hash.ToString(),
+                            UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[6]))),
+                            UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[4]))),
+                            pkey);
+                        // LogPrintf("cpor_verify result: %d\n", ret);
+                        if (ret == 1) {
+                            // std::cout << "Proof success!" <<std::endl;
+                            item.nReputation++;
+                        } else {
+                            // std::cout << "Proof failed!" <<std::endl;
+                            item.nReputation--;
+                        }
+                    }
+                }
+            }
+
+            // check proof
+            //  for(int i = 0; i< contract.theContractState.num_blocks; ++i) {
+            //    if()
+            //  }
+            return;
+        }
+    }
+    for (int i = 0; i < contract.theContractState.num_ipfsnode; ++i) {
         s.hash = contract.getAddress();
         CIPFSNode ipfsNode;
-          ipfsNode.pubKey = uint256S(contract.aIpfsNode[i].address);
-          ipfsNode.ip = contract.aIpfsNode[i].ip;
-          s.vIPFSNode.insert(std::pair<uint256, CIPFSNode>(ipfsNode.pubKey,ipfsNode));
-      }
-  vStorageContract.push_back(s);
+        ipfsNode.pubKey = uint256S(contract.aIpfsNode[i].address);
+        ipfsNode.ip = contract.aIpfsNode[i].ip;
+        s.vIPFSNode.insert(std::pair<uint256, CIPFSNode>(ipfsNode.pubKey, ipfsNode));
+    }
+    vStorageContract.push_back(s);
 }
-CBlock* CBlockContractManager::retrieveBlock(uint256) {
-  return nullptr;
+CBlock* CBlockContractManager::retrieveBlock(uint256)
+{
+    return nullptr;
 }
-
 
 
 void CBlockContractManager::InitParams()
 {
-  //No longer need
+    // No longer need
 }
 
 int CBlockContractManager::InitKey()
@@ -272,22 +280,22 @@ int CBlockContractManager::InitKey()
     size_t Zp_size = 0;
     unsigned char* Zp = NULL;
 
-    fs::path path = GetDataDir() / "cpor" ;
-  fs::create_directory(path);
-  path /= "cpor.key";
+    fs::path path = GetDataDir() / "cpor";
+    fs::create_directory(path);
+    path /= "cpor.key";
     // LogPrintf("Get the path\n");
 
-    if(fs::exists(path)) return ReadKey();
+    if (fs::exists(path)) return ReadKey();
 
     // LogPrintf("Get the new CPOR key\n");
-    if (((key = allocate_cpor_key(cParams.enc_key_size,cParams.mac_key_size)) == nullptr)) return -1;
+    if (((key = allocate_cpor_key(cParams.enc_key_size, cParams.mac_key_size)) == nullptr)) return -1;
     if (((key->global = cpor_create_global(cParams.Zp_bits)) == NULL)) return -1;
     // LogPrintf("Allocate success\n");
     if (!RAND_bytes(key->k_enc, cParams.enc_key_size)) return -1;
     key->k_enc_size = cParams.enc_key_size;
     if (!RAND_bytes(key->k_mac, cParams.mac_key_size)) return -1;
     key->k_mac_size = cParams.mac_key_size;
-    
+
     // LogPrintf("Open CPOR key path\n");
     pkey = key;
     keyfile = fsbridge::fopen(path, "w");
@@ -319,48 +327,47 @@ int CBlockContractManager::InitKey()
     return 1;
 }
 
-int CBlockContractManager::ReadKey() {
-
-
-	CPOR_key *key = NULL;
-	FILE *keyfile = NULL;
-	size_t Zp_size = 0;
-	unsigned char *Zp = NULL;
-  fs::path path = GetDataDir() / "cpor" ;
-  fs::create_directory(path);
-  path /= "cpor.key";
-	if( ((key = allocate_cpor_key(cParams.enc_key_size,cParams.mac_key_size)) == nullptr)) return -1;
-	if( ((key->global = allocate_cpor_global()) == NULL)) return -1;
+int CBlockContractManager::ReadKey()
+{
+    CPOR_key* key = NULL;
+    FILE* keyfile = NULL;
+    size_t Zp_size = 0;
+    unsigned char* Zp = NULL;
+    fs::path path = GetDataDir() / "cpor";
+    fs::create_directory(path);
+    path /= "cpor.key";
+    if (((key = allocate_cpor_key(cParams.enc_key_size, cParams.mac_key_size)) == nullptr)) return -1;
+    if (((key->global = allocate_cpor_global()) == NULL)) return -1;
     // LogPrintf("RdKey:Open CPOR key path\n");
-  // LogPrintf("CPOR key path: %s\n", path.c_str());
-	keyfile = fsbridge::fopen(path, "r");
-  if (!keyfile) return InitKey();
+    // LogPrintf("CPOR key path: %s\n", path.c_str());
+    keyfile = fsbridge::fopen(path, "r");
+    if (!keyfile) return InitKey();
     // LogPrintf("RdKey:Read CPOR key\n");
-	
-	fread(&(key->k_enc_size), sizeof(size_t), 1, keyfile);
-	if(ferror(keyfile)) return -1;
-	fread(key->k_enc, key->k_enc_size, 1, keyfile);
-	if(ferror(keyfile)) return -1;
-	fread(&(key->k_mac_size), sizeof(size_t), 1, keyfile);
-	if(ferror(keyfile)) return -1;
-	fread(key->k_mac, key->k_mac_size, 1, keyfile);
-	if(ferror(keyfile)) return -1;
 
-	fread(&Zp_size, sizeof(size_t), 1, keyfile);
-	if(ferror(keyfile)) return -1;
-	if( ((Zp = (unsigned char *)malloc(Zp_size)) == NULL)) return -1;
-	memset(Zp, 0, Zp_size);
-	fread(Zp, Zp_size, 1, keyfile);
-	if(ferror(keyfile)) return -1;
-	if(!BN_bin2bn(Zp, Zp_size, key->global->Zp)) return -1;
+    fread(&(key->k_enc_size), sizeof(size_t), 1, keyfile);
+    if (ferror(keyfile)) return -1;
+    fread(key->k_enc, key->k_enc_size, 1, keyfile);
+    if (ferror(keyfile)) return -1;
+    fread(&(key->k_mac_size), sizeof(size_t), 1, keyfile);
+    if (ferror(keyfile)) return -1;
+    fread(key->k_mac, key->k_mac_size, 1, keyfile);
+    if (ferror(keyfile)) return -1;
+
+    fread(&Zp_size, sizeof(size_t), 1, keyfile);
+    if (ferror(keyfile)) return -1;
+    if (((Zp = (unsigned char*)malloc(Zp_size)) == NULL)) return -1;
+    memset(Zp, 0, Zp_size);
+    fread(Zp, Zp_size, 1, keyfile);
+    if (ferror(keyfile)) return -1;
+    if (!BN_bin2bn(Zp, Zp_size, key->global->Zp)) return -1;
     // LogPrintf("RdKey:cmp\n");
-	
-	if(Zp) sfree(Zp, Zp_size);
-	if(keyfile) fclose(keyfile);
-  pkey = key;
-  // free(key);
-	
-	return 1;
+
+    if (Zp) sfree(Zp, Zp_size);
+    if (keyfile) fclose(keyfile);
+    pkey = key;
+    // free(key);
+
+    return 1;
 }
 
 uint256 deploySysContract(CBlock& pblock)

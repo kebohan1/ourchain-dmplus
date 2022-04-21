@@ -677,15 +677,15 @@ static void ThreadImport(std::vector<fs::path> vImportFiles)
     if (fReindex) {
         int nFile = 0;
         while (true) {
-            FlatFilePos pos(nFile, 0);
-            if (!fs::exists(GetBlockPosFilename(pos)))
-                break; // No block files left to reindex
-            FILE *file = OpenBlockFile(pos, true);
-            if (!file)
-                break; // This error is logged in OpenBlockFile
-            LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
-            LoadExternalBlockFile(chainparams, file, &pos);
-            nFile++;
+            // FlatFilePos pos(nFile, 0);
+            // if (!fs::exists(GetBlockPosFilename(pos)))
+            //     break; // No block files left to reindex
+            // FILE *file = OpenBlockFile(pos, true);
+            // if (!file)
+            //     break; // This error is logged in OpenBlockFile
+            // LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
+            // LoadExternalBlockFile(chainparams, file, &pos);
+            // nFile++;
         }
         pblocktree->WriteReindexing(false);
         fReindex = false;
