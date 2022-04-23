@@ -41,6 +41,7 @@ class IpfsStorageManager {
 
     IpfsStorageManager(){};
     void receiveMessage(std::vector<CStorageMessage> msgs);
+    void receiveChallengeMessage(std::vector<ChallengeMessage> msgs);
     void init();
     void FlushDisk();
     ADD_SERIALIZE_METHODS;
@@ -49,6 +50,7 @@ class IpfsStorageManager {
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(vStoredContract);
         READWRITE(vReadySolvingMsg);
+        READWRITE(vStoredBlock);
         READWRITE(contractHash);
         READWRITE(RegisterKey);
     }

@@ -83,7 +83,6 @@ typedef struct block {
   char merkleRoot[129]; // the length of merkle root is 256 bit
   char tfileCID[50];
   int allocated_blockSavers_size;
-  int num_blockSavers;
   int* blockSavers;
   int allocated_array_proof_size;
   int num_proof;
@@ -871,7 +870,7 @@ static void appendToBlockSaverArray(int* psaver, int index_saver, int* allocated
     psaver = newSaverArray;
     *allocated_saver_array_size = new_allocated_saver_array_size;
   }
-  psaver[*num_saver++] = index_saver;
+  psaver[(*num_saver)++] = index_saver;
 }
 
 static void appendToProofArray(ProofBlock* proofList, ProofBlock proof, int* allocated_proof_array_size, int* num_proof) {
@@ -1136,16 +1135,16 @@ int validateProof(char* proofCID, char* challengeCID, Block* block) {
   // char* blockPath = "";// 讀取本地的區塊用來驗證
   char* proof_ret = HTTPrequest(proofCID, strlen(proofCID));
   unsigned char* proof_hex = StrHex(proof_ret, strlen(proof_ret));
-  err_printf("proof: %s\n",proof_ret);
-  hexPrintf(proof_hex, strlen(proof_ret));
+  // err_printf("proof: %s\n",proof_ret);
+  // hexPrintf(proof_hex, strlen(proof_ret));
   char* challenge_ret = HTTPrequest(challengeCID, strlen(challengeCID));
   unsigned char* challenge_hex = StrHex(challenge_ret,strlen(challenge_ret));
-  err_printf("challenge_ret: %s\n",challenge_ret);
-  hexPrintf(challenge_hex, strlen(challenge_ret));
+  // err_printf("challenge_ret: %s\n",challenge_ret);
+  // hexPrintf(challenge_hex, strlen(challenge_ret));
   char* tfile_ret = HTTPrequest(block->tfileCID, strlen(block->tfileCID));
   unsigned char* tfile_hex = StrHex(tfile_ret,strlen(tfile_ret));
-  err_printf("tfile_ret: %s\n",tfile_ret);
-  hexPrintf(tfile_hex, strlen(tfile_ret));
+  // err_printf("tfile_ret: %s\n",tfile_ret);
+  // hexPrintf(tfile_hex, strlen(tfile_ret));
   
   
   CPOR_proof* proof = UnserializeProof(proof_hex);
@@ -1240,7 +1239,7 @@ static int saveBlock(char* merkle_root, char* CID, int index_Ipfsnode, char* pro
    int ret = validateProof(proofCID,challengCID,nowBlock);
    if(!ret) return -1;
 
-  appendToBlockSaverArray(nowBlock->blockSavers,index_Ipfsnode,&nowBlock->allocated_blockSavers_size,&nowBlock->num_blockSavers);
+  appendToBlockSaverArray(nowBlock->blockSavers,index_Ipfsnode,&nowBlock->allocated_blockSavers_size,&nowBlock->nBlockSavers);
   // nowBlock->blockSavers[nowBlock->nBlockSavers] = index_Ipfsnode;
   pIpfsNode->nBlockNum++;
 
@@ -1262,18 +1261,13 @@ static int saveBlock(char* merkle_root, char* CID, int index_Ipfsnode, char* pro
   return blockIndex;
 }
 
-static int saveProof(char* merkle_root, char* proofCID, IPFSNode* cIpfsnode, time_t time) {
-  /* TODO: Block Upload need to verify by provide the proof of block to check to success. We
-   * can implement with the Provable Data Possision (PDP). This should be done before the benckmark
-   * 2022-03-13
-   */
-   // int ret = validateProof(proofCID)
-   // if(!ret) return -1;
+static int saveProof(char* merkle_root, char* proofCID, char* challengeCID, IPFSNode* cIpfsnode, time_t time) {
 
   ProofBlock* cProofBlock = malloc(sizeof(ProofBlock));
 
   Block* cblock = &aBlocks[findBlock(merkle_root)];
-
+    int ret = validateProof(proofCID,challengeCID,cblock);
+   if(!ret) return -1;
   strcpy(cProofBlock->cAddress, cIpfsnode->address);
   strcpy(cProofBlock->cCIDHash, proofCID);
   cProofBlock->time = time;
@@ -1388,7 +1382,25 @@ int contract_main(int argc, char** argv)
                 return -1;
             }
             err_printf("allowance:%d\n", allowance(argv[2], argv[3]));
-        } else if(!strcmp(argv[1], "save_block")) {
+        } else if(!strcmp(argv[1], "proof_block")) {
+          /*
+          * argv[2]: merkle root
+          * argv[3]: ipfs pubkey
+          * argv[4]: proof CID
+          * argv[5]: challenge CID
+          * argv[6]: time
+          */
+          if(argc != 7) return -1;
+          int n_ipfs_index = findIPFSnode(argv[3]);
+          err_printf("index:%d\n",n_ipfs_index);
+          if(n_ipfs_index < 0) return -1;
+          int ret = saveProof(argv[2], argv[4], argv[5], &aIpfsNode[n_ipfs_index], argv[6]);
+          err_printf("Proof:%d,%s,%s,%s\n", ret, argv[2], argv[3], argv[4]);
+          if(ret < 0) return -1;
+          // out_clear();
+          out_printf("%d,%s,%s,%s\n", ret, argv[2], argv[3], argv[4]);
+
+        }else if(!strcmp(argv[1], "save_block")) {
           /*
           * argv[2]: merkle root
           * argv[3]: CID

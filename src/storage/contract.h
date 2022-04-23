@@ -15,10 +15,10 @@ class CIPFSNode {
 protected:
   
 public:
-  uint256 pubKey;
+  std::string pubKey;
   std::string ip;
   CIPFSNode(){};
-  CIPFSNode(uint256 pubKey, std::string ip) : pubKey(pubKey), ip(ip) {}
+  CIPFSNode(std::string pubKey, std::string ip) : pubKey(pubKey), ip(ip) {}
   std::string getIP(){
     return ip;
   }
@@ -36,7 +36,7 @@ public:
 
 class StorageContract{
   public:
-    std::map<uint256, CIPFSNode> vIPFSNode;
+    std::map<std::string, CIPFSNode> vIPFSNode;
     int nReputation = 0;
     uint256 hash;
     StorageContract(){};
@@ -91,6 +91,7 @@ class CBlockContractManager {
     std::vector<StorageContract> vStorageContract;
     int n_max_cold_pool = 0;
     int init = 0;
+    int n_last_challenge_height = 0;
     
     
 
@@ -116,6 +117,7 @@ class CBlockContractManager {
         READWRITE(vWorkingSet);
         READWRITE(vStorageContract);
         READWRITE(n_max_cold_pool);
+        READWRITE(n_last_challenge_height);
         READWRITE(init);
         READWRITE(cParams);
 
@@ -143,9 +145,10 @@ class CBlockContractManager {
     void workingSet(uint256 hash,FlatFilePos);
 
     void hotColdClassifier(CBlock* block);
-    bool lookupColdBlock(FlatFilePos pos);
+    bool lookupColdPool(FlatFilePos pos);
     bool lookupWorkingSet(FlatFilePos pos);
-    CBlock& GetBackFromIPFS(FlatFilePos pos);
+    void GetBackFromIPFS(CBlock& block, FlatFilePos pos);
+    void challengeBlock(int nHeight);
 };
 
 

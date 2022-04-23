@@ -99,3 +99,31 @@ void IpfsContract::init()
         LogPrintf("Contract Err:offset = %u  count = %u\n", offset, count);
     }
 }
+
+std::vector<uint256> IpfsContract::getSavedBlock(std::string pubkey) {
+  int ipfs_index = -1;
+  std::vector<uint256> vStoredBlock;
+  LogPrintf("Inside getSavedBlock\n");
+  for(int i = 0; i < theContractState.num_ipfsnode; ++i) {
+    LogPrintf("IPFS address: %s, ipfs in contract: %s\n",aIpfsNode[i].address,pubkey.c_str());
+    if(!strcmp(aIpfsNode[i].address,pubkey.c_str())) {
+      ipfs_index = i;
+      LogPrintf("Get ipfs index:%d\n",i);
+      break;
+    }
+  }
+  if(ipfs_index == -1) return vStoredBlock;
+  LogPrintf("Contract num blocks:%d\n",theContractState.num_blocks);
+  for(int i = 0; i < theContractState.num_blocks; ++i) {
+    LogPrintf("Block Saver num:%d\n",aBlocks[i].nBlockSavers);
+    for(int j = 0; j < aBlocks[i].nBlockSavers; ++j) {
+      LogPrintf("Block Saver num index:%d\n",aBlocks[i].blockSavers[j]);
+      if(aBlocks[i].blockSavers[j] == ipfs_index) {
+        vStoredBlock.push_back(uint256S(aBlocks[i].merkleRoot)); 
+        LogPrintf("Find Block:%d\n",i); 
+        break;
+      }
+    }
+  }
+  return vStoredBlock;
+}

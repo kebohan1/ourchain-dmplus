@@ -17,16 +17,16 @@
 #include <netbase.h>
 #include <netmessagemaker.h>
 #include <storage/ipfs_interface.h>
+#include <cstdlib>
+#include <ctime>
 
 using namespace std;
 
-#define COLDPOOL_MAX 10000
-#define WORKINGSET_SIZE 320000 * sizeof(uint256)
+#define COLDPOOL_MAX 10
+#define WORKINGSET_SIZE 32
+#define CHALLENGE_TIME 10
+#define CHALLENGE_BLOCKS 10
 
-// TODO: select ipfs amount should be global setting
-int ipfs_max_select = 4;
-
-int ipfs_no_reputation_rate = 0.25;
 
 
 void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
@@ -42,7 +42,7 @@ void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
 
         // LogPrintf("Pkey info: k_enc: %s\n",pkey->k_enc);
         for (auto& item : vColdPool) {
-            csvStream << time(NULL) << "," << item.first.ToString() <<",0";
+            csvStream << time(NULL) << "," << item.first.ToString() <<",0\n";
             CBlock block;
             fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat", item.first.ToString());
             FlatFilePos pos(item.second);
@@ -71,7 +71,7 @@ void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
             fs::path TFile = path / "Tfiles" / item.first.ToString().append(".t");
             if (fs::exists(TagFile)) continue;
             local_cpor_tag_file(str, item.first, pkey);
-            csvStream << time(NULL) << "," << item.first.ToString() <<",1";
+            csvStream << time(NULL) << "," << item.first.ToString() <<",1\n";
             std::vector<unsigned char> t_bin = readFileToUnsignedChar(TFile.string());
             // mTagFile.insert(pair<uint256, FILE*>(item.GetHash(),fsbridge::fopen(path,"r")));
             std::vector<unsigned char> challenge = SerializeChallenge(cpor_challenge_file(item.first.ToString(), pkey));
@@ -112,7 +112,7 @@ void CBlockContractManager::workingSet(uint256 hash, FlatFilePos pos)
             return;
         }
     }
-    if ((vWorkingSet.size() + 1) * sizeof(uint256) > WORKINGSET_SIZE) {
+    if ((vWorkingSet.size() + 1)  > WORKINGSET_SIZE) {
         appendColdPool(std::pair<uint256,FlatFilePos>(vWorkingSet.back().first,vWorkingSet.back().second));
         vWorkingSet.pop_back();
     }
@@ -129,10 +129,10 @@ bool CBlockContractManager::lookupWorkingSet(FlatFilePos pos)
     return false;
 }
 
-bool CBlockContractManager::lookupColdBlock(FlatFilePos pos)
+bool CBlockContractManager::lookupColdPool(FlatFilePos pos)
 {
-    for (auto& it : vColdBlock) {
-        if(pos.hash == it.hash){
+    for (auto& it : vColdPool) {
+        if(pos.hash == it.first){
             return true;
         }
     }
@@ -143,15 +143,15 @@ void CBlockContractManager::hotColdClassifier(CBlock* block)
 {
 }
 
-CBlock& CBlockContractManager::GetBackFromIPFS(FlatFilePos pos) {
-    CBlock block;
+void CBlockContractManager::GetBackFromIPFS(CBlock& block, FlatFilePos pos) {
+
     for(auto& it: vColdBlock ){
         if(pos.hash == it.hash) {
             GetBlockFromIPFS(block,it.CID);
             
         }
     }
-    return block;
+
 }
 
 // This function is used to parse node stats to map in local
@@ -166,18 +166,13 @@ static void getNodeStat(std::map<std::string, NodeId>& nodes)
 
 bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
 {
+    LOCK(cs_main);
     sort(vStorageContract.begin(), vStorageContract.end(), [](StorageContract& x, StorageContract& y) { return x.nReputation > y.nReputation; });
     std::fstream csvStream;
     fs::path csvPath = GetDataDir() / "upload.csv";
     csvStream.open(csvPath.string(),ios::app);
     // Test first contract ipfsvector
-    std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
-    std::shared_ptr<CWallet> const wallet = wallets.size() == 1 || wallets.size() > 0 ? wallets[0] : nullptr;
 
-    CWallet* const pwallet = wallet.get();
-    CPubKey newKey;
-
-    pwallet->GetKeyFromPool(newKey);
 
     std::cout << "Contract Size: " << vStorageContract.size() << std::endl;
     if (vStorageContract.size() == 0) return false;
@@ -197,7 +192,7 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
                     getNodeStat(nodes);
                 }
                 NodeId nodeid = nodes.find(node.second.ip)->second;
-                LogPrintf("Node IP: %s, node id: %d\n", node.second.ip, nodeid);
+                // LogPrintf("Node IP: %s, node id: %d\n", node.second.ip, nodeid);
                 std::vector<CStorageMessage> vMessage;
                 for (auto& list : vDeployList) {
                     CStorageMessage message;
@@ -207,7 +202,7 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
                     message.firstChallengeCID = list.firstChallengeCID;
                     message.tFileCID = list.tfileCID;
                     g_connman->ForNodeMsg(nodeid, message);
-                    csvStream << time(NULL) << "," << list.hash.ToString() <<",2";
+                    csvStream << time(NULL) << "," << list.hash.ToString() <<",2\n";
                 }
                 flag = true;
             }
@@ -238,11 +233,13 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
             // std::cout << "Contract exist! just append nodes" <<std::endl;
             // check new ipfsnode sign_up
             for (int i = 0; i < contract.theContractState.num_ipfsnode; ++i) {
-                if (item.vIPFSNode.find(uint256S(contract.aIpfsNode[i].address)) == item.vIPFSNode.end()) {
+                if (item.vIPFSNode.find(contract.aIpfsNode[i].address) 
+                      == item.vIPFSNode.end()) {
                     CIPFSNode ipfsNode;
-                    ipfsNode.pubKey = uint256S(contract.aIpfsNode[i].address);
+                    ipfsNode.pubKey = contract.aIpfsNode[i].address;
+                    LogPrintf("Pubkey: %s\n",ipfsNode.pubKey);
                     ipfsNode.ip = contract.aIpfsNode[i].ip;
-                    item.vIPFSNode.insert(std::pair<uint256, CIPFSNode>(ipfsNode.pubKey, ipfsNode));
+                    item.vIPFSNode.insert(std::pair<std::string, CIPFSNode>(ipfsNode.pubKey, ipfsNode));
                 }
             }
 
@@ -253,14 +250,44 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                 // std::cout << "Proof started!" <<std::endl;
                 ReadKey();
                 for (auto& coldblock : vColdBlock) {
-                    // TODO: 0419 following if is not jump in
+
 
                     if (coldblock.hash.ToString() == contract.getArgs()[1]) {
                         // std::cout << "Source merkle: " << coldblock.hash.ToString() << ",Output merkle:" << contract.getArgs()[1] <<std::endl;
-                        int ret = cpor_verify_file(coldblock.hash.ToString(),
+                        
+                        // To store the proof state 
+                        int ret = -1;
+                        /**
+                         * @brief Check the Tfile CID in contract. If the CID is not the same
+                         * Then user will seem that this save block is save from others. User
+                         * will store this tfile and change the CID in vColdBlock. Before storing
+                         * the file, user has to validate the tfile and proof is correctly
+                         * calculated. So user have to cat both of them to calculate and compare. 
+                         * 
+                         */
+                        if(coldblock.tfileCID != contract.getArgs()[5]) {
+                          CPOR_t* t = UnserializeT(StrHex(GetFromIPFS(contract.getArgs()[5])));
+                          CPOR_challenge* challenge = UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[6])));
+                          CPOR_proof* proof = UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[4])));
+                          ret = cpor_verify_proof(challenge->global,
+                                                  proof,
+                                                  challenge,
+                                                  t->k_prf,
+                                                  t->alpha);
+                          if(ret){
+                            fs::path tfilepath = GetDataDir() / "cpor" / contract.getAddress().ToString().append(".t");
+                            FILE* tfile = fsbridge::fopen(tfilepath,"w");
+                            write_cpor_t_without_key(t,tfile);
+                            coldblock.tfileCID = contract.getArgs()[5];
+                          }
+                        } else {
+                          ret = cpor_verify_file(coldblock.hash.ToString(),
                             UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[6]))),
                             UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[4]))),
                             pkey);
+                        }
+                        
+                        
                         // LogPrintf("cpor_verify result: %d\n", ret);
                         if (ret == 1) {
                             // std::cout << "Proof success!" <<std::endl;
@@ -269,11 +296,72 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                             // std::cout << "Proof failed!" <<std::endl;
                             item.nReputation--;
                         }
-                        csvStream << time(NULL) << "," << coldblock.hash.ToString() <<",3";
+                        csvStream << time(NULL) << "," << coldblock.hash.ToString() <<",3\n";
 
-                    }
+                    } else {
+                        CBlockEach newBlock;
+                        CPOR_t* t = UnserializeT(StrHex(GetFromIPFS(contract.getArgs()[5])));
+                        CPOR_challenge* challenge = UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[6])));
+                        CPOR_proof* proof = UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[4])));
+                        int ret = cpor_verify_proof(challenge->global,
+                                                  proof,
+                                                  challenge,
+                                                  t->k_prf,
+                                                  t->alpha);
+                        if(ret){
+                            //TODO 0422: If user didn't push this file to smart contract but recv set push and ignore to upload
+                            fs::path tfilepath = GetDataDir() / "cpor" / contract.getAddress().ToString().append(".t");
+                            FILE* tfile = fsbridge::fopen(tfilepath,"w");
+                            write_cpor_t_without_key(t,tfile);
+                            coldblock.tfileCID = contract.getArgs()[5];
+                        }
+                    } 
                 }
                 csvStream.close();
+            }
+
+            if(contract.getArgs()[0] == "proof_block") {
+                std::fstream csvStream;
+                fs::path csvPath = GetDataDir() / "challenge.csv";
+                csvStream.open(csvPath.string(),ios::app);
+                std::cout << "Proof Block started!" <<std::endl;
+                ReadKey();
+                for (auto& coldblock : vColdBlock) {
+                    if (coldblock.hash.ToString() == contract.getArgs()[1]) {
+                        // std::cout << "Source merkle: " << coldblock.hash.ToString() << ",Output merkle:" << contract.getArgs()[1] <<std::endl;
+                        
+                        // To store the proof state 
+                        int ret = -1;
+                        /**
+                         * @brief Check the Tfile CID in contract. If the CID is not the same
+                         * Then user will seem that this save block is save from others. User
+                         * will store this tfile and change the CID in vColdBlock. Before storing
+                         * the file, user has to validate the tfile and proof is correctly
+                         * calculated. So user have to cat both of them to calculate and compare. 
+                         * 
+                         */
+
+                        ret = cpor_verify_file(coldblock.hash.ToString(),
+                            UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[4]))),
+                            UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[3]))),
+                            pkey);
+
+                        
+                        
+                        // LogPrintf("cpor_verify result: %d\n", ret);
+                        if (ret == 1) {
+                            // std::cout << "Proof success!" <<std::endl;
+                            item.nReputation++;
+                        } else {
+                            // std::cout << "Proof failed!" <<std::endl;
+                            item.nReputation--;
+                        }
+                        csvStream << time(NULL) << "," << coldblock.hash.ToString() <<",1";
+
+                    }  
+                }
+                
+
             }
 
             // check proof
@@ -286,10 +374,13 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
     for (int i = 0; i < contract.theContractState.num_ipfsnode; ++i) {
         s.hash = contract.getAddress();
         CIPFSNode ipfsNode;
-        ipfsNode.pubKey = uint256S(contract.aIpfsNode[i].address);
+        ipfsNode.pubKey = contract.aIpfsNode[i].address;
+                    LogPrintf("Pubkey: %s\n",ipfsNode.pubKey);
+
         ipfsNode.ip = contract.aIpfsNode[i].ip;
-        s.vIPFSNode.insert(std::pair<uint256, CIPFSNode>(ipfsNode.pubKey, ipfsNode));
+        s.vIPFSNode.insert(std::pair<std::string, CIPFSNode>(ipfsNode.pubKey, ipfsNode));
     }
+    std::cout << "StorageContract Size:" << vStorageContract.size() <<std::endl;
     vStorageContract.push_back(s);
 }
 CBlock* CBlockContractManager::retrieveBlock(uint256)
@@ -400,149 +491,51 @@ int CBlockContractManager::ReadKey()
     return 1;
 }
 
-uint256 deploySysContract(CBlock& pblock)
-{
-    // TODO: check amount of wallet
-    std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
-    std::shared_ptr<CWallet> const wallet = wallets.size() == 1 || wallets.size() > 0 ? wallets[0] : nullptr;
+void CBlockContractManager::challengeBlock(int nHeight){
+    LOCK(cs_main);
+    if(vStorageContract.size() == 0) return;
+    
+    if(nHeight > n_last_challenge_height + CHALLENGE_TIME) {
+        srand(time(NULL));
+        std::cout << "Challenge..." <<std::endl;
+        
+        ChallengeMessage chalmsg;
+        std::map<std::string, NodeId> nodes;
+        getNodeStat(nodes);
+        ReadKey();
+        for (auto& Itemcontract : vStorageContract) {
+            if (Itemcontract.vIPFSNode.size() != 0) {
+                Contract ccontract;
+                ccontract.address=Itemcontract.hash;
+                IpfsContract ipfscontract(ccontract);
+                ipfscontract.init();
+                //TODO 0422: Challenge did not work at all;
+                LogPrintf("IPFS contract num_ipfsnode:%d\n",ipfscontract.theContractState.num_ipfsnode);
+                for(auto& ipfs: Itemcontract.vIPFSNode) {
+                    std::vector<uint256> blocks = ipfscontract.getSavedBlock(ipfs.second.pubKey);
+                    LogPrintf("Output blocks size: %d\n", blocks.size());
+                    if(blocks.size() == 0) break;
+                    
+                    int rand_times = blocks.size() > CHALLENGE_BLOCKS ? CHALLENGE_BLOCKS : blocks.size();
+                    for(int i = 0; i < rand_times; ++i) {
+                        int rand_num = rand() % blocks.size();
+                        std::vector<unsigned char> challenge = SerializeChallenge(cpor_challenge_file(blocks[rand_num].ToString(), pkey));
+                        
+                        std::string challengeCID = AddToIPFS(HexStr(challenge));
+                        LogPrintf("Output challenge: %s\n",challengeCID);
+                        chalmsg.vChallenge.push_back(std::pair<uint256, std::string>(blocks[rand_num], challengeCID));
+                    
+                    }
+                    NodeId nodeid = nodes.find(ipfs.second.getIP())->second;
+                    g_connman->ForNodeMsg(nodeid, chalmsg);
 
-    if (wallet == nullptr) {
-        fprintf(stderr, "Wallet is empty, create first.\n");
-        return uint256S("0");
+                }
+                
+                
+                
+            }
+        }
+        n_last_challenge_height = nHeight;
+
     }
-    CWallet* const pwallet = wallet.get();
-
-    LOCK(pwallet->cs_wallet); // prevent insufficient funds
-
-    Contract contract;
-
-    ReadFile("./ipfsContract.c", contract.code);
-
-    contract.action = contract_action::ACTION_NEW;
-    contract.usage = contract_usage::USAGE_SYS;
-
-    contract.address = uint256();
-
-    if (!pwallet->IsLocked())
-        pwallet->TopUpKeyPool();
-    // Generate a new key that is added to wallet
-    CPubKey newKey;
-
-    if (!pwallet->GetKeyFromPool(newKey)) {
-        fprintf(stderr, "Error: Keypool ran out, please call keypoolrefill first");
-        return uint256S("0");
-    }
-
-
-    CKeyID keyID = newKey.GetID();
-    OutputType output_type = pwallet->m_default_change_type != OutputType::CHANGE_AUTO ? pwallet->m_default_change_type : pwallet->m_default_address_type;
-    CTxDestination dest = GetDestinationForKey(newKey, output_type);
-
-    std::string strAccount;
-    pwallet->SetAddressBook(dest, strAccount, "receive");
-
-    // sendtoaddress
-
-    //  CBitcoinAddress address(CBitcoinAddress(keyID).ToString());
-    if (!IsValidDestination(dest)) {
-        fprintf(stderr, "Invalid Bitcoin address");
-        return uint256S("0");
-    }
-
-    if (pwallet->IsLocked()) {
-        fprintf(stderr, "Error: Please enter the wallet passphrase with walletpassphrase first.");
-        return uint256S("0");
-    }
-
-    //  CWalletTx wtx;
-    CTransactionRef tx;
-    CCoinControl no_coin_control;
-    SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
-
-    //
-
-    return contract.address;
 }
-
-std::string openLevelDB(std::string path, std::string key)
-{
-    leveldb::DB* db;
-    leveldb::Options option;
-    option.create_if_missing = false;
-    leveldb::DB::Open(option, path, &db);
-    leveldb::DB::Open(option, path, &db);
-    std::string result;
-    leveldb::Status status = db->Get(leveldb::ReadOptions(), key, &result);
-
-    delete db;
-    if (status.IsNotFound() == true) return "";
-    return result;
-}
-
-bool checkContractOwner(std::string sContractHash)
-{
-    fs::path path = GetDataDir() / "Storage/Contract";
-    std::string sContractStatus = openLevelDB(path.c_str(), sContractHash);
-
-    // if no data found or the status of contract is end, return false
-    if (sContractHash == "" || (sContractHash != "" && sContractStatus == "-1")) return false;
-    return true;
-}
-
-// CIPFSNode getIPFSNode(std::string hash) {
-
-//   // find or create node
-//   fs::path path = GetDataDir() / "Storage/Reputation";
-//   std::string sReputation = openLevelDB(path.c_str(), hash);
-//   // if(sReputation == "") return CIPFSNode(uint256S(hash));
-//   return CIPFSNode(uint256S(hash), std::stoi(sReputation));
-
-// }
-
-
-// bool CIPFSNode::selectIPFSDeploy(std::vector<CIPFSNode> vIPFSList) {
-
-//   //sort ipfsList with merge sort
-//   // IPFSMergeSort(vIPFSList, 0, vIPFSList.size() - 1);
-
-//   //put selected ipfs node into a vector
-//   std::vector<CIPFSNode> selectedIPFSList;
-//   if(vIPFSList.size() < (int)ipfs_max_select * ipfs_no_reputation_rate) {
-//     selectedIPFSList = vIPFSList;
-//   } else {
-//     selectedIPFSList.insert(selectedIPFSList.end(), vIPFSList.begin(),
-//                             vIPFSList.begin() + (int)ipfs_max_select * ipfs_no_reputation_rate);
-//   }
-
-//   //TODO: call contract to deploy func
-//   return true;
-// }
-
-// bool processStorageContract(Contract contract){
-//   if(contract.usage != contract_usage::USAGE_SYS) return false;
-//   fs::fstream file;
-//   fs::path pOutputPath = GetDataDir() / "Contract" / contract.address.GetHex() /"out";
-//   file.open(pOutputPath,std::ios::in | std::ios::binary);
-
-//   //determine owner of contract and contract state
-//   if(checkContractOwner(contract.address.ToString())){
-//     // receive ipfs list
-//     if(contract.args[1]=="getIPFSlist"){
-//       std::vector<CIPFSNode> vIPFSNodeList;
-//       while(!file.eof()) {
-//         char line[256];
-//         file.getline(line,sizeof(line));
-//         CIPFSNode node = getIPFSNode(line);
-//         vIPFSNodeList.push_back(node);
-
-//       }
-
-//       selectIPFSDeploy(vIPFSNodeList);
-
-//     }
-//   } else {
-
-//   }
-
-//   return true;
-// }

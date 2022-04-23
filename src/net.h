@@ -197,6 +197,7 @@ public:
     bool ForNode(NodeId id, std::function<bool(CNode* pnode)> func);
     
     bool ForNodeMsg(NodeId id, CStorageMessage& msg);
+    bool ForNodeMsg(NodeId id, ChallengeMessage& msg);
     void PushMessage(CNode* pnode, CSerializedNetMsg&& msg);
 
     template<typename Callable>
@@ -719,6 +720,7 @@ public:
     bool fSendMempool GUARDED_BY(cs_inventory){false};
 
     std::vector<CStorageMessage> vStorageMessage;
+    std::vector<ChallengeMessage> vChallengeMessage;
 
     // Last time a "MEMPOOL" request was serviced.
     std::atomic<int64_t> timeLastMempoolReq{0};
@@ -858,6 +860,10 @@ public:
 
     void PushStorageMessage(const CStorageMessage& msg){
         vStorageMessage.push_back(msg);
+    }
+
+    void PushChallengeMessage(const ChallengeMessage& msg){
+        vChallengeMessage.push_back(msg);
     }
 
     void PushBlockHash(const uint256 &hash)

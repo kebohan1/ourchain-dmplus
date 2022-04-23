@@ -245,6 +245,11 @@ extern const char *BLOCKTXN;
  */
 extern const char *STORAGEREQEUST;
 extern const char *STORAGEACK;
+/**
+ * @brief Contains a ChallengeMessage
+ * Only for push challenge msg
+ */
+extern const char *CHALLENGE;
 };
 
 /* Get a vector of all valid message types (see above) */

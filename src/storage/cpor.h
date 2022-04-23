@@ -87,3 +87,5 @@ int cpor_verify_file(std::string hash, CPOR_challenge *challenge, CPOR_proof *pr
 
 std::vector<unsigned char> SerializeT(CPOR_t* t);
 CPOR_t* UnserializeT(std::vector<unsigned char> from);
+
+void write_cpor_t_without_key(CPOR_t* t, FILE* tfile);

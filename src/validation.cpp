@@ -1271,6 +1271,8 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     }
     // cmanager.appendColdPool(block.GetHash());
     cmanager.workingSet(block.GetHash(),pos);
+    CChain chain = ::ChainActive();
+    cmanager.challengeBlock(chain.Height());
     CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath ,"wb"), SER_DISK, CLIENT_VERSION);
     nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
     cfilemanagerOut << cmanager << nSize;
@@ -1317,7 +1319,7 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
      std::fstream csvStream;
     fs::path csvPath = GetDataDir() / "read.csv";
     csvStream.open(csvPath.string(),ios::app);
-    csvStream << time(NULL) << "," << pos.hash.ToString() <<",0";
+    csvStream << time(NULL) << "," << pos.hash.ToString() <<",0\n";
 
     CBlockContractManager cmanager{};
     fs::path managerpath = GetCPORDir() / "cmanager.dat";
@@ -1334,7 +1336,7 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
            cfilemanager >> cmanager ;
         }
     }
-    if(cmanager.lookupWorkingSet(pos)) {
+    if(cmanager.lookupWorkingSet(pos) || cmanager.lookupColdPool(pos)) {
         if (filein.IsNull())
             return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.hash.ToString());
         // Read block from local
@@ -1344,11 +1346,14 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
         } catch (const std::exception& e) {
             return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.hash.ToString());
         }
+        csvStream << time(NULL) << "," << pos.hash.ToString() <<",1A\n";
+        if(block.IsNull())
+            return error("Faile to read block from disk");
     } else {
-        block = cmanager.GetBackFromIPFS(pos);
+        cmanager.GetBackFromIPFS(block, pos);
         if(block.IsNull())
             return error("Faile to read block from IPFS");
-        csvStream << time(NULL) << "," << pos.hash.ToString() <<",1";
+        csvStream << time(NULL) << "," << pos.hash.ToString() <<",1B\n";
         
         CAutoFile fileout(OpenNewBlockFile(pos),SER_DISK,CLIENT_VERSION);
         fileout << block;
@@ -2404,6 +2409,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     //  }
 
     //The function write revxxx.dat
+    std::cout << "At lest not die hear" <<std::endl;
     if (!WriteUndoDataForBlock(blockundo, state, pindex, chainparams))
         return false;
 

@@ -43,6 +43,7 @@ const char *GETBLOCKTXN="getblocktxn";
 const char *BLOCKTXN="blocktxn";
 const char *STORAGEREQEUST = "storagereq";
 const char *STORAGEACK = "storageack";
+const char *CHALLENGE = "challenge";
 } // namespace NetMsgType
 
 /** All known message types. Keep this in the same order as the list of
@@ -76,7 +77,8 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETBLOCKTXN,
     NetMsgType::BLOCKTXN,
     NetMsgType::STORAGEREQEUST,
-    NetMsgType::STORAGEACK
+    NetMsgType::STORAGEACK,
+    NetMsgType::CHALLENGE
 };
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
 

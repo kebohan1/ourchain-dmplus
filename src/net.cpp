@@ -2717,6 +2717,20 @@ bool CConnman::ForNodeMsg(NodeId id, CStorageMessage& msg) {
     return found != nullptr ;
 }
 
+bool CConnman::ForNodeMsg(NodeId id, ChallengeMessage& msg) {
+    CNode* found = nullptr;
+    LOCK(cs_vNodes);
+    for (auto&& pnode : vNodes) {
+        if(pnode->GetId() == id) {
+            found = pnode;
+            std::cout << "Find peer:" << found->GetId() << std::endl;
+            found->PushChallengeMessage(msg);
+            break;
+        }
+    }
+    return found != nullptr ;
+}
+
 int64_t CConnman::PoissonNextSendInbound(int64_t now, int average_interval_seconds)
 {
     if (m_next_send_inv_to_incoming < now) {

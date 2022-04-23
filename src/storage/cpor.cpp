@@ -767,6 +767,12 @@ cleanup:
 	return NULL;
 }
 
+void write_cpor_t_without_key(CPOR_t* t, FILE* tfile) {
+  std::vector<unsigned char> t_bin = SerializeT(t);
+	unsigned char* p_t_bin = &t_bin[0];
+	fwrite(p_t_bin, t_bin.size(), 1, tfile);
+}
+
 
 
 int local_cpor_tag_file(std::string str, uint256 hash, CPOR_key* pkey){
@@ -860,9 +866,7 @@ int local_cpor_tag_file(std::string str, uint256 hash, CPOR_key* pkey){
 
 	/* Write t to the tfile */
 	// if(!write_cpor_t(tfile, pkey, t)) return -1;
-	std::vector<unsigned char> t_bin = SerializeT(t);
-	unsigned char* p_t_bin = &t_bin[0];
-	fwrite(p_t_bin, t_bin.size(), 1, tfile);
+	write_cpor_t_without_key(t,tfile);
   // LogPrintf("Finalize\n");
 	destroy_cpor_t(t);
 	// if(file) fclose(file);
@@ -1075,7 +1079,7 @@ CPOR_challenge* UnserializeChallenge(std::vector<unsigned char> from) {
 
   CPOR_challenge* newChallenge = allocate_cpor_challenge(l);
 	newChallenge->l = l;
-	std::cout << "l:" << newChallenge->l <<std::endl;
+	// std::cout << "l:" << newChallenge->l <<std::endl;
 
 	for(int i = 0; i < newChallenge->l; ++i) {
 		memcpy(&I, pfrom + offset, sizeof(unsigned int));
