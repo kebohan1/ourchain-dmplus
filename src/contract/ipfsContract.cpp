@@ -73,11 +73,13 @@ unsigned int IpfsContract::readIpfsNodeArray(unsigned char* buffer, unsigned int
 /** This function is used to read the state from disk*/
 void IpfsContract::init()
 {
+
     unsigned int count;
 
     LogPrintf("Start read state\n");
     fs::path stateFile = GetDataDir() / "contracts" / address.ToString() / "state";
     FILE* f = fsbridge::fopen(stateFile, "r");
+    // if(!f) return;
     LogPrintf("Read whole contract size\n");
     fread(&count, sizeof(int), 1, f);
     // state_read(&count, sizeof(int));
@@ -98,11 +100,12 @@ void IpfsContract::init()
     if (offset != count) {
         LogPrintf("Contract Err:offset = %u  count = %u\n", offset, count);
     }
+    fclose(f);
 }
 
-std::vector<uint256> IpfsContract::getSavedBlock(std::string pubkey) {
+int IpfsContract::findUser(std::string pubkey){
   int ipfs_index = -1;
-  std::vector<uint256> vStoredBlock;
+
   LogPrintf("Inside getSavedBlock\n");
   for(int i = 0; i < theContractState.num_ipfsnode; ++i) {
     LogPrintf("IPFS address: %s, ipfs in contract: %s\n",aIpfsNode[i].address,pubkey.c_str());
@@ -112,6 +115,12 @@ std::vector<uint256> IpfsContract::getSavedBlock(std::string pubkey) {
       break;
     }
   }
+  return ipfs_index;
+}
+
+std::vector<uint256> IpfsContract::getSavedBlock(std::string pubkey) {
+  int ipfs_index = findUser(pubkey);
+  std::vector<uint256> vStoredBlock;
   if(ipfs_index == -1) return vStoredBlock;
   LogPrintf("Contract num blocks:%d\n",theContractState.num_blocks);
   for(int i = 0; i < theContractState.num_blocks; ++i) {

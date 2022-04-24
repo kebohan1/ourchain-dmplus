@@ -87,8 +87,8 @@ class CBlockContractManager {
   protected:
     std::vector<std::pair<uint256, FlatFilePos>> vColdPool;
     std::vector<std::pair<uint256, FlatFilePos>> vWorkingSet;
-    std::vector<CBlockEach> vColdBlock;
-    std::vector<StorageContract> vStorageContract;
+    std::map<uint256,CBlockEach> vColdBlock;
+    std::map<uint256,StorageContract> vStorageContract;
     int n_max_cold_pool = 0;
     int init = 0;
     int n_last_challenge_height = 0;

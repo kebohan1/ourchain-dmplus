@@ -347,6 +347,7 @@ libbitcoin_wallet_a_SOURCES = \
   interfaces/wallet.cpp \
   storage/ipfs.cpp \
   storage/ipfs_interface.cpp \
+  contract/ipfsContract.cpp \
   storage/cpor.cpp \
   wallet/coincontrol.cpp \
   wallet/crypter.cpp \

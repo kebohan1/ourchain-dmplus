@@ -101,6 +101,7 @@ void IpfsStorageManager::receiveMessage(std::vector<CStorageMessage> msgs)
         contract.args.push_back(proofCID);    // proofCID
         contract.args.push_back(msg.tFileCID);
         contract.args.push_back(msg.firstChallengeCID);
+        contract.args.push_back(msg.TagCID);
         contract.args.push_back(std::to_string(time(NULL))); // time
 
 
@@ -128,7 +129,6 @@ void IpfsStorageManager::receiveChallengeMessage(std::vector<ChallengeMessage> m
     LogPrintf("Recieve Challenge\n");
     for (auto& msg : msgs) {
         for (auto& item : msg.vChallenge) {
-            
             std::string block = GetFromIPFS(vStoredBlock.find(item.first)->second.CID);
             std::string challenge = GetFromIPFS(item.second);
             std::string tag = GetFromIPFS(vStoredBlock.find(item.first)->second.TagCID);
@@ -165,6 +165,7 @@ void IpfsStorageManager::receiveChallengeMessage(std::vector<ChallengeMessage> m
             // destroy_cpor_proof(pproof);
         }
     }
+    DynamicStoreBlocks();
 }
 
 void IpfsStorageManager::init()
@@ -182,4 +183,100 @@ void IpfsStorageManager::FlushDisk()
     CAutoFile cfilemanagerOut(fsbridge::fopen(path, "wb"), SER_DISK, CLIENT_VERSION);
     size_t nSize = GetSerializeSize(*this, cfilemanagerOut.GetVersion());
     cfilemanagerOut << *this << nSize;
+}
+
+bool blockNumCompare(Block a, Block b)
+{
+    return a.nBlockSavers < b.nBlockSavers;
+}
+
+bool blockNumDESC(Block a, Block b)
+{
+    return a.nBlockSavers > b.nBlockSavers;
+}
+
+void IpfsStorageManager::DynamicStoreBlocks()
+{
+
+    Contract contract;
+    contract.address = contractHash;
+    LogPrintf("DynamicStoreBlocks\n");
+    // fs::path csvPath = GetDataDir() / "dynamic.csv";
+    IpfsContract ipfsCon(contract);
+    // std::fstream csvStream;
+    if(ipfsCon.findUser(RegisterKey) == -1) return;
+    // csvStream.open(csvPath.string(),ios::app);
+    int recvContractNum = ipfsCon.getSavedBlock(RegisterKey).size();
+    // csvStream << recvContractNum <<std::endl; 
+    if (recvContractNum < ipfsCon.theContractState.num_blocks / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
+        std::sort(ipfsCon.aBlocks,
+            ipfsCon.aBlocks + ipfsCon.theContractState.num_blocks,
+            blockNumCompare);
+        int saveBlocks = recvContractNum;
+        CWallet* const pwallet = getWallet();
+        CTxDestination dest = getDest(pwallet);
+        EnsureWalletIsUnlocked(pwallet);
+        for (int i = 0; i < ipfsCon.theContractState.num_blocks; ++i) {
+            if (vStoredBlock.find(uint256S(ipfsCon.aBlocks[i].merkleRoot)) == vStoredBlock.end() && saveBlocks < ipfsCon.theContractState.num_blocks / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
+                PinIPFS(ipfsCon.aBlocks[i].CIDHash);
+                PinIPFS(ipfsCon.aBlocks[i].tagCID);
+                Contract contract;
+
+                contract.action = contract_action::ACTION_CALL;
+                contract.usage = contract_usage::USAGE_USER;
+                contract.address = contractHash;
+                // LogPrintf("IPFS signup output: %s\n",contractHash.ToString());
+                /*
+                 * Argc num = 6
+                 * argv[2]: merkle root
+                 * argv[3]: CID
+                 * argv[4]: ipfs pubkey
+                 * argv[5]: time
+                 */
+                contract.args.push_back("save_block");
+                contract.args.push_back(ipfsCon.aBlocks[i].merkleRoot);
+                contract.args.push_back(ipfsCon.aBlocks[i].CIDHash);
+                contract.args.push_back(RegisterKey);                // pubkey
+                contract.args.push_back(std::to_string(time(NULL))); // time
+
+                CTransactionRef tx;
+                CCoinControl no_coin_control;
+                SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
+            }
+        }
+    } else if (recvContractNum > ipfsCon.theContractState.num_blocks / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
+        std::sort(ipfsCon.aBlocks,
+            ipfsCon.aBlocks + ipfsCon.theContractState.num_blocks,
+            blockNumDESC);
+        int saveBlocks = recvContractNum;
+        CWallet* const pwallet = getWallet();
+        CTxDestination dest = getDest(pwallet);
+        EnsureWalletIsUnlocked(pwallet);
+        for (int i = 0; i < ipfsCon.theContractState.num_blocks; ++i) {
+            if (vStoredBlock.find(uint256S(ipfsCon.aBlocks[i].merkleRoot)) != vStoredBlock.end() && saveBlocks > ipfsCon.theContractState.num_blocks / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
+                // TODO: UnPinFromIPFS
+                // PinIPFS(ipfsCon.aBlocks[i].CIDHash);
+                // PinIPFS(ipfsCon.aBlocks[i].tagCID);
+                Contract contract;
+
+                contract.action = contract_action::ACTION_CALL;
+                contract.usage = contract_usage::USAGE_USER;
+                contract.address = contractHash;
+                // LogPrintf("IPFS signup output: %s\n",contractHash.ToString());
+                /*
+                 * Argc num = 3
+                 * argv[2]: merkle_root
+                 * argv[3]: ipfs pubkey
+                 */
+                contract.args.push_back("remove_block");
+                contract.args.push_back(ipfsCon.aBlocks[i].merkleRoot);
+                contract.args.push_back(RegisterKey);                // pubkey
+
+                CTransactionRef tx;
+                CCoinControl no_coin_control;
+                SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
+            }
+        }
+    }
+    ipfsCon.theContractState.num_blocks;
 }

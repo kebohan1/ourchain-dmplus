@@ -1276,6 +1276,12 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath ,"wb"), SER_DISK, CLIENT_VERSION);
     nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
     cfilemanagerOut << cmanager << nSize;
+    fs::path imanagerPath = GetDataDir() / "cpor" / "imanager.dat";
+    // if(fs::exists(imanagerPath)){
+    //   IpfsStorageManager imanager;
+    //   //TODO: Dynamic choosing storing blocks
+    //   imanager.DynamicStoreBlocks();
+    // }
     // deploySysContract(testFile);
     return true;
 }

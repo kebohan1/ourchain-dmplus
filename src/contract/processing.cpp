@@ -206,6 +206,7 @@ bool ProcessContract(const Contract &contract, std::vector<CTxOut> &vTxOut, std:
         std::cout<< "CALL" << std::endl;
         if (call_rt(contract.address, contract.args, vTxOut, state, nextContract) < 0) {
             /* TODO: perform state recovery */
+            LogPrintf("call out failed\n");
             return false;
         }
     }
@@ -232,6 +233,7 @@ bool ProcessContract(const Contract &contract, std::vector<CTxOut> &vTxOut, std:
         LogPrintf("Create ipfsContract\n");
 
         //TODO: Append Contract and state into cmanager
+
         IpfsContract ipfsContract(contract);
         cmanager.receiveContract(ipfsContract);
 

@@ -44,6 +44,7 @@ class IpfsStorageManager {
     void receiveChallengeMessage(std::vector<ChallengeMessage> msgs);
     void init();
     void FlushDisk();
+    void DynamicStoreBlocks();
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>

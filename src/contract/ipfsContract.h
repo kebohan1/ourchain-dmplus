@@ -50,6 +50,7 @@ struct Block {
   char CIDHash[50];
   char merkleRoot[129]; // the length of merkle root is 256 bit
   char tfileCID[50];
+  char tagCID[50];
   int allocated_blockSavers_size;
   int* blockSavers;
   int allocated_array_proof_size;
@@ -99,4 +100,5 @@ class IpfsContract : Contract{
     unsigned int readIpfsNodeArray(unsigned char* buffer, unsigned int offset);
 
     std::vector<uint256> getSavedBlock(std::string pubkey);
+    int findUser(std::string pubkey);
 };
