@@ -72,6 +72,7 @@ void IpfsStorageManager::receiveMessage(std::vector<CStorageMessage> msgs)
     CWallet* const pwallet = getWallet();
     CTxDestination dest = getDest(pwallet);
     EnsureWalletIsUnlocked(pwallet);
+    int nRecieveMsg = msgs.size();
     for (auto msg : msgs) {
         // std::cout << "CID: " << msg.CID << ",TagCID: " << msg.TagCID << ",ChallengeCID: " << msg.firstChallengeCID <<std::endl;
         if (vStoredBlock.find(msg.hash) != vStoredBlock.end()) continue;
@@ -119,6 +120,7 @@ void IpfsStorageManager::receiveMessage(std::vector<CStorageMessage> msgs)
         vStoredBlock.insert(std::pair<uint256, IpfsStoredBlock>(msg.hash, cblock));
     }
     // LogPrintf("Process Cmp\n");
+    DynamicStoreBlocks(nRecieveMsg);
 }
 
 void IpfsStorageManager::receiveChallengeMessage(std::vector<ChallengeMessage> msgs)
@@ -165,7 +167,7 @@ void IpfsStorageManager::receiveChallengeMessage(std::vector<ChallengeMessage> m
             // destroy_cpor_proof(pproof);
         }
     }
-    DynamicStoreBlocks();
+    
 }
 
 void IpfsStorageManager::init()
@@ -195,7 +197,7 @@ bool blockNumDESC(Block a, Block b)
     return a.nBlockSavers > b.nBlockSavers;
 }
 
-void IpfsStorageManager::DynamicStoreBlocks()
+void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
 {
 
     Contract contract;
@@ -206,7 +208,7 @@ void IpfsStorageManager::DynamicStoreBlocks()
     // std::fstream csvStream;
     if(ipfsCon.findUser(RegisterKey) == -1) return;
     // csvStream.open(csvPath.string(),ios::app);
-    int recvContractNum = ipfsCon.getSavedBlock(RegisterKey).size();
+    int recvContractNum = ipfsCon.getSavedBlock(RegisterKey).size() + already_stored_num;
     // csvStream << recvContractNum <<std::endl; 
     if (recvContractNum < ipfsCon.theContractState.num_blocks / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
         std::sort(ipfsCon.aBlocks,
