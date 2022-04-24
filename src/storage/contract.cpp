@@ -114,7 +114,7 @@ void CBlockContractManager::workingSet(uint256 hash, FlatFilePos pos)
         appendColdPool(std::pair<uint256, FlatFilePos>(vWorkingSet.back().first, vWorkingSet.back().second));
         vWorkingSet.pop_back();
     }
-    vWorkingSet.push_back(std::pair<uint256, FlatFilePos>(hash, pos));
+    vWorkingSet.insert(vWorkingSet.begin(),std::pair<uint256, FlatFilePos>(hash, pos));
 }
 
 bool CBlockContractManager::lookupWorkingSet(FlatFilePos pos)
@@ -175,11 +175,14 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
     getNodeStat(nodes);
     bool flag = false;
 
+    std::vector<CBlockEach>::iterator iter;
     //Check if there is a block inside coldblock then do not deploy again
-    for(auto &block: vDeployList) {
-      if(vColdBlock.find(block.hash)!= vColdBlock.end()) {
-        vDeployList.erase();//TODO: erase if exist in vcoldblock
-      }
+
+    for(iter=vDeployList.begin(); iter != vDeployList.end(); iter++) {
+        if(vColdBlock.find(iter->hash)!= vColdBlock.end()) {
+          
+            vDeployList.erase(iter);// erase if exist in vcoldblock
+        }
     }
 
     for (auto& Itemcontract : vStorageContract) {
