@@ -161,7 +161,7 @@ static void getNodeStat(std::map<std::string, NodeId>& nodes)
 bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
 {
     LOCK(cs_main);
-    sort(vStorageContract.begin(), vStorageContract.end(), [](StorageContract& x, StorageContract& y) { return x.nReputation > y.nReputation; });
+    // sort(vStorageContract.begin(), vStorageContract.end(), [](StorageContract& x, StorageContract& y) { return x.nReputation > y.nReputation; });
     std::fstream csvStream;
     fs::path csvPath = GetDataDir() / "upload.csv";
     csvStream.open(csvPath.string(), ios::app);
