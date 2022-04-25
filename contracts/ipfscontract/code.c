@@ -1447,7 +1447,7 @@ int contract_main(int argc, char** argv) {
     initBlockArray();
     err_printf("compute_contract_size()\n");
     theContractState.size_contract = compute_contract_size();
-    theContractState.num_replication = 1;
+    theContractState.num_replication = 3;
 
     writeState();
   } else {
@@ -1544,8 +1544,10 @@ int contract_main(int argc, char** argv) {
        * argv[3]: ipfs pubkey
        */
       int n_ipfs_index = findIPFSnode(argv[3]);
+      err_printf("Remove index:%d\n", n_ipfs_index);
       if(n_ipfs_index < 0) return -1;
       int ret = removeBlockSaver(argv[2], n_ipfs_index);
+      err_printf("Remove: %d,%s,%s\n", ret, argv[2], argv[3]);
       return ret;
     } else if (!strcmp(argv[1], "printAllBlocks")) {
       printAllBlock();

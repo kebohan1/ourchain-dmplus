@@ -5,6 +5,7 @@
 
 #include <validation.h>
 
+#include "contract/processing.h"
 #include <arith_uint256.h>
 #include <chain.h>
 #include <chainparams.h>
@@ -42,7 +43,6 @@
 #include <util/strencodings.h>
 #include <util/system.h>
 #include <util/validation.h>
-#include "contract/processing.h"
 #include <validationinterface.h>
 #include <warnings.h>
 
@@ -58,11 +58,11 @@
 
 #include "storage/contract.h"
 #include <storage/ipfs.h>
-#include <wallet/wallet.h>
+#include <wallet/coincontrol.h>
 #include <wallet/rpcwallet.h>
+#include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 #include <wallet/walletutil.h>
-#include <wallet/coincontrol.h>
 
 // added by Hank 20190715
 using namespace std;
@@ -157,17 +157,17 @@ namespace {
 CBlockIndex*& pindexBestInvalid = ::ChainstateActive().pindexBestInvalid;
 
 /** All pairs A->B, where A (or one of its ancestors) misses transactions, but B has transactions.
-     * Pruned nodes may have entries where B is missing data.
-     */
+ * Pruned nodes may have entries where B is missing data.
+ */
 std::multimap<CBlockIndex*, CBlockIndex*>& mapBlocksUnlinked = ::ChainstateActive().mapBlocksUnlinked;
 
 CCriticalSection cs_LastBlockFile;
 std::vector<CBlockFileInfo> vinfoBlockFile;
 int nLastBlockFile = 0;
 /** Global flag to indicate we should check to see if there are
-     *  block/undo files that should be deleted.  Set on startup
-     *  or if we allocate more file space when we're in prune mode
-     */
+ *  block/undo files that should be deleted.  Set on startup
+ *  or if we allocate more file space when we're in prune mode
+ */
 bool fCheckForPruning = false;
 
 /** Dirty block index entries. */
@@ -953,7 +953,7 @@ static string ReadIPFSHashFromDisk(string pindex)
 //     cout << "Response json:\n" << responseStr.get() << endl;
 
 //     //---- unserialize json string to the original CBlock data structure ---- Hank 20190902
-//     // CBlock block_json;    
+//     // CBlock block_json;
 //     stringstream_t s;
 //     s << responseStr.get();
 //     json::value Response = json::value::parse(s);
@@ -964,17 +964,17 @@ static string ReadIPFSHashFromDisk(string pindex)
 
 //     block.nVersion = atoi(Response["nVersion"].serialize());
 //     // cout << "nVersion: " << atoi(Response["nVersion"].serialize()) << endl;
-    
+
 //     temp = Response["hashMerkleRoot"].serialize();
 //     temp.erase(0,temp.find_first_not_of("\""));
-//     temp.erase(temp.find_last_not_of("\"")+1); 
+//     temp.erase(temp.find_last_not_of("\"")+1);
 //     block.hashMerkleRoot = uint256S(temp);
 //     // cout << "hashMerkleRoot: " << Response["hashMerkleRoot"].serialize() << endl;
 
 //     temp = Response["hashPrevBlock"].serialize();
 //     temp.erase(0,temp.find_first_not_of("\""));
-//     temp.erase(temp.find_last_not_of("\"")+1); 
-//     block.hashPrevBlock = uint256S(temp);    
+//     temp.erase(temp.find_last_not_of("\"")+1);
+//     block.hashPrevBlock = uint256S(temp);
 //     // cout << "hashPrevBlock: " << Response["hashPrevBlock"].serialize() << endl;
 
 //     block.nTime = atoi(Response["nTime"].serialize());
@@ -983,16 +983,16 @@ static string ReadIPFSHashFromDisk(string pindex)
 //     // cout << "nBits: " << Response["nBits"].serialize() << endl;
 //     block.nNonce = atoi(Response["nNonce"].serialize());
 //     // cout << "nNonce: " << Response["nNonce"].serialize() << endl;
-    
+
 //     for(int i =0; i < atoi(Response["vtx"]["size"].serialize()); i++){
 //         string txHex = Response["vtx"]["Txs"][i].serialize();
 //         txHex.erase(0,txHex.find_first_not_of("\""));
-//         txHex.erase(txHex.find_last_not_of("\"")+1);    
-//         // cout << "txHex: " << txHex << endl;   
+//         txHex.erase(txHex.find_last_not_of("\"")+1);
+//         // cout << "txHex: " << txHex << endl;
 //         CMutableTransaction Mtx{};
 //         DecodeHexTx(Mtx,txHex,true);
 //         block.vtx.push_back(MakeTransactionRef(std::move(Mtx)));
-//     }      
+//     }
 //     // CTransaction finaltx = CTransaction(Mtx);
 //     // cout << "finaltx:\n" << finaltx.ToString() << endl;
 //     // cout << block.ToString() << endl;
@@ -1135,7 +1135,7 @@ static string ReadIPFSHashFromDisk(string pindex)
 //     std::shared_ptr<CWallet> const wallet = wallets.size() == 1 || wallets.size() > 0 ? wallets[0] : nullptr;
 
 //     if (wallet == nullptr) {
-        
+
 //         fprintf(stderr, "Wallet is empty, create first.\n");
 // 				return uint256S("0");
 //     }
@@ -1182,28 +1182,27 @@ static string ReadIPFSHashFromDisk(string pindex)
 // 			fprintf(stderr,"Error: Please enter the wallet passphrase with walletpassphrase first.");
 // 			return uint256S("0");
 // 		}
-    
+
 //     //  CWalletTx wtx;
 //     CTransactionRef tx;
 //     CCoinControl no_coin_control;
 //     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
 
-//     //  
+//     //
 
 //     return contract.address;
 // }
 
 
-
-
-void ProcessIPFSBlock(std::vector<CStorageMessage>& msg) {
+void ProcessIPFSBlock(std::vector<CStorageMessage>& msg)
+{
     IpfsStorageManager imanager{};
-    LogPrintf("Get cmanager path\n");
+    // LogPrintf("Get cmanager path\n");
     fs::path managerpath = GetCPORDir() / "imanager.dat";
-    LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
-    CAutoFile cfilemanager(fsbridge::fopen(managerpath ,"rb"), SER_DISK, CLIENT_VERSION);
+    // LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
+    CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
     // if(!cmanager.isInit()) {
-        
+
     //     if(cfilemanager.IsNull()) {
     //         LogPrintf("imanager.dat not found... create 1\n");
     //         // cmanager.InitParams();
@@ -1214,11 +1213,11 @@ void ProcessIPFSBlock(std::vector<CStorageMessage>& msg) {
     //        cfilemanager >> imanager ;
     //     }
     // }
-    if(!cfilemanager.IsNull()) {
-        cfilemanager >> imanager ;
+    if (!cfilemanager.IsNull()) {
+        cfilemanager >> imanager;
     }
     imanager.receiveMessage(msg);
-    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath ,"wb"), SER_DISK, CLIENT_VERSION);
+    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath, "wb"), SER_DISK, CLIENT_VERSION);
     size_t nSize = GetSerializeSize(imanager, cfilemanagerOut.GetVersion());
     cfilemanagerOut << imanager << nSize;
 }
@@ -1228,52 +1227,54 @@ void ProcessIPFSBlock(std::vector<CStorageMessage>& msg) {
 // CBlock and CBlockIndex
 //
 
-static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart,int nHeight)
+static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart, int nHeight)
 {
-
     // Open history file to append
     // CAutoFile fileout(OpenBlockFile(pos), SER_DISK, CLIENT_VERSION);
     // fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat",pos.hash.ToString());
     // FILE* f = fsbridge::fopen(newBlockPath, "wb+");
 
-    CAutoFile fileout(OpenNewBlockFile(pos),SER_DISK,CLIENT_VERSION);
+    CAutoFile fileout(OpenNewBlockFile(pos), SER_DISK, CLIENT_VERSION);
+    fs::path newBlockPath = GetBlocksDir() / strprintf("blk_head_%s.dat", pos.hash.ToString());
+    FILE* f = fsbridge::fopen(newBlockPath, "wb+");
+    CAutoFile fileheader(f, SER_DISK, CLIENT_VERSION);
     if (fileout.IsNull())
         return error("WriteBlockToDisk: OpenBlockFile failed");
 
     // Write index header
     unsigned int nSize = GetSerializeSize(block, fileout.GetVersion());
-    fileout << messageStart << nSize;
+    fileheader << messageStart << nSize;
 
     // Write block
-    long fileOutPos = ftell(fileout.Get());
+    long fileOutPos = ftell(fileheader.Get());
     if (fileOutPos < 0)
         return error("WriteBlockToDisk: ftell failed");
-    pos.nPos = (unsigned int)fileOutPos;
+    // pos.nPos = (unsigned int)fileOutPos;
+
     fileout << block;
     // std::string testFile("test");
-    LogPrintf("Init cmanager\n");
+    // LogPrintf("Init cmanager\n");
     CBlockContractManager cmanager{};
-    LogPrintf("Get cmanager path\n");
+    // LogPrintf("Get cmanager path\n");
     fs::path managerpath = GetCPORDir() / "cmanager.dat";
-    LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
-    CAutoFile cfilemanager(fsbridge::fopen(managerpath ,"rb"), SER_DISK, CLIENT_VERSION);
-    if(!cmanager.isInit()) {
-        
-        if(cfilemanager.IsNull()) {
-            LogPrintf("cmanager.dat not found... create 1\n");
+    // LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
+    CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
+    if (!cmanager.isInit()) {
+        if (cfilemanager.IsNull()) {
+            // LogPrintf("cmanager.dat not found... create 1\n");
             cmanager.InitParams();
             cmanager.InitKey();
             cmanager.setInit();
         } else {
-            LogPrintf("cmanager.dat serializing\n");
-           cfilemanager >> cmanager ;
+            // LogPrintf("cmanager.dat serializing\n");
+            cfilemanager >> cmanager;
         }
     }
     // cmanager.appendColdPool(block.GetHash());
-    cmanager.workingSet(block.GetHash(),pos);
+    cmanager.workingSet(block.GetHash(), pos);
     CChain chain = ::ChainActive();
     cmanager.challengeBlock(chain.Height());
-    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath ,"wb"), SER_DISK, CLIENT_VERSION);
+    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath, "wb"), SER_DISK, CLIENT_VERSION);
     nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
     cfilemanagerOut << cmanager << nSize;
     fs::path imanagerPath = GetDataDir() / "cpor" / "imanager.dat";
@@ -1318,54 +1319,52 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
 
     // Open history file to read
     // CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
-    fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat",pos.hash.ToString());
+    fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat", pos.hash.ToString());
     FILE* f = fsbridge::fopen(newBlockPath, "rb");
     fseek(f, pos.nPos, SEEK_SET);
-    CAutoFile filein(OpenNewBlockFile(pos, true),SER_DISK,CLIENT_VERSION);
-     std::fstream csvStream;
+    CAutoFile filein(OpenNewBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    std::fstream csvStream;
     fs::path csvPath = GetDataDir() / "read.csv";
-    csvStream.open(csvPath.string(),ios::app);
-    csvStream << time(NULL) << "," << pos.hash.ToString() <<",0\n";
+    csvStream.open(csvPath.string(), ios::app);
+    csvStream << time(NULL) << "," << pos.hash.ToString() << ",0\n";
 
     CBlockContractManager cmanager{};
     fs::path managerpath = GetCPORDir() / "cmanager.dat";
-    CAutoFile cfilemanager(fsbridge::fopen(managerpath ,"rb"), SER_DISK, CLIENT_VERSION);
-    if(!cmanager.isInit()) {
-        
-        if(cfilemanager.IsNull()) {
+    CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
+    if (!cmanager.isInit()) {
+        if (cfilemanager.IsNull()) {
             LogPrintf("cmanager.dat not found... create 1\n");
             cmanager.InitParams();
             cmanager.InitKey();
             cmanager.setInit();
         } else {
             LogPrintf("cmanager.dat serializing\n");
-           cfilemanager >> cmanager ;
+            cfilemanager >> cmanager;
         }
     }
-    if(cmanager.lookupWorkingSet(pos) || cmanager.lookupColdPool(pos)) {
+    if (cmanager.lookupWorkingSet(pos) || cmanager.lookupColdPool(pos)) {
         if (filein.IsNull())
             return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.hash.ToString());
         // Read block from local
         try {
-            
             filein >> block;
         } catch (const std::exception& e) {
             return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.hash.ToString());
         }
-        csvStream << time(NULL) << "," << pos.hash.ToString() <<",1A\n";
-        if(block.IsNull())
+        csvStream << time(NULL) << "," << pos.hash.ToString() << ",1A\n";
+        if (block.IsNull())
             return error("Faile to read block from disk");
     } else {
         cmanager.GetBackFromIPFS(block, pos);
-        if(block.IsNull())
+        if (block.IsNull())
             return error("Faile to read block from IPFS");
-        csvStream << time(NULL) << "," << pos.hash.ToString() <<",1B\n";
-        
-        CAutoFile fileout(OpenNewBlockFile(pos),SER_DISK,CLIENT_VERSION);
+        csvStream << time(NULL) << "," << pos.hash.ToString() << ",1B\n";
+
+        CAutoFile fileout(OpenNewBlockFile(pos), SER_DISK, CLIENT_VERSION);
         fileout << block;
         cmanager.workingSet(block.GetHash(), pos);
     }
-    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath ,"wb"), SER_DISK, CLIENT_VERSION);
+    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath, "wb"), SER_DISK, CLIENT_VERSION);
     int nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
     cfilemanagerOut << cmanager << nSize;
     // Check the header
@@ -1394,7 +1393,7 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
     /* Do not use levelDB ----Hanry 20191209*/
     if (!ReadBlockFromDisk(block, blockPos, consensusParams))
         return false;
-    
+
     if (block.GetHash() != pindex->GetBlockHash())
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
             pindex->ToString(), pindex->GetBlockPos().ToString());
@@ -1404,17 +1403,45 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start)
 {
     FlatFilePos hpos = pos;
-    hpos.nPos -= 8; // Seek back 8 bytes for meta header
-    CAutoFile filein(OpenNewBlockFile(hpos, true), SER_DISK, CLIENT_VERSION);
-    if (filein.IsNull()) {
+    // hpos.nPos -= 8; // Seek back 8 bytes for meta header
+    fs::path newBlockPath = GetBlocksDir() / strprintf("blk_head_%s.dat", pos.hash.ToString());
+    FILE* f = fsbridge::fopen(newBlockPath, "rb");
+    CAutoFile fileheader(f, SER_DISK, CLIENT_VERSION);
+    CAutoFile filein(OpenNewBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    if (fileheader.IsNull()) {
         return error("%s: OpenBlockFile failed for %s", __func__, pos.ToString());
+    }
+
+    if (filein.IsNull()) {
+        CBlockContractManager cmanager{};
+        CBlock block;
+        fs::path managerpath = GetCPORDir() / "cmanager.dat";
+        CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
+        if (!cmanager.isInit()) {
+            if (cfilemanager.IsNull()) {
+                LogPrintf("cmanager.dat not found... create 1\n");
+                cmanager.InitParams();
+                cmanager.InitKey();
+                cmanager.setInit();
+            } else {
+                LogPrintf("cmanager.dat serializing\n");
+                cfilemanager >> cmanager;
+            }
+        }
+        cmanager.GetBackFromIPFS(block, pos);
+        if (block.IsNull())
+            return error("Faile to read block from IPFS");
+
+
+        CAutoFile fileout(OpenNewBlockFile(pos), SER_DISK, CLIENT_VERSION);
+        fileout << block;
     }
 
     try {
         CMessageHeader::MessageStartChars blk_start;
         unsigned int blk_size;
 
-        filein >> blk_start >> blk_size;
+        fileheader >> blk_start >> blk_size;
 
         if (memcmp(blk_start, message_start, CMessageHeader::MESSAGE_START_SIZE)) {
             return error("%s: Block magic mismatch for %s: %s versus expected %s", __func__, pos.ToString(),
@@ -1599,34 +1626,32 @@ void CChainState::InvalidBlockFound(CBlockIndex* pindex, const CValidationState&
     }
 }
 
-CTransactionRef ProcessContractTx(const Contract &cont, CCoinsViewCache& inputs,
-                                   std::vector<Contract> &nextContract)
- {
-     if (cont.action==0) return CTransactionRef();
-     CMutableTransaction mtx;
-     ContState cs;
-     CAmount balance = 0;
-     inputs.GetContState(cont.address,cs);
-     for (const COutPoint &outpoint : cs.coins)
-     {
-         mtx.vin.push_back(CTxIn(outpoint));
-         balance += inputs.AccessCoin(outpoint).out.nValue;
-     }
+CTransactionRef ProcessContractTx(const Contract& cont, CCoinsViewCache& inputs, std::vector<Contract>& nextContract)
+{
+    if (cont.action == 0) return CTransactionRef();
+    CMutableTransaction mtx;
+    ContState cs;
+    CAmount balance = 0;
+    inputs.GetContState(cont.address, cs);
+    for (const COutPoint& outpoint : cs.coins) {
+        mtx.vin.push_back(CTxIn(outpoint));
+        balance += inputs.AccessCoin(outpoint).out.nValue;
+    }
 
-     if (!ProcessContract(cont,mtx.vout,cs.state,balance,nextContract)) return CTransactionRef();
-     // update cont state
-     cs.coins.clear();
+    if (!ProcessContract(cont, mtx.vout, cs.state, balance, nextContract)) return CTransactionRef();
+    // update cont state
+    cs.coins.clear();
 
-     if(mtx.vin.size() == 0) return CTransactionRef();
-     // add the change
-     CAmount amount = 0;
-     for (const CTxOut &txout : mtx.vout)
-         amount += txout.nValue;
-     assert(amount<=balance);
-     if(amount<balance)
-         mtx.vout.push_back(CTxOut(balance-amount, GetScriptForContract(cont.address)));
-     return MakeTransactionRef(mtx);
- }
+    if (mtx.vin.size() == 0) return CTransactionRef();
+    // add the change
+    CAmount amount = 0;
+    for (const CTxOut& txout : mtx.vout)
+        amount += txout.nValue;
+    assert(amount <= balance);
+    if (amount < balance)
+        mtx.vout.push_back(CTxOut(balance - amount, GetScriptForContract(cont.address)));
+    return MakeTransactionRef(mtx);
+}
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo& txundo, int nHeight)
 {
@@ -1720,7 +1745,7 @@ bool CheckInputs(const CTransaction& tx, CValidationState& state, const CCoinsVi
             // round - giving us 19 + 32 + 4 = 55 bytes (+ 8 + 1 = 64)
             static_assert(55 - sizeof(flags) - 32 >= 128 / 8, "Want at least 128 bits of nonce for script execution cache");
             CSHA256().Write(scriptExecutionCacheNonce.begin(), 55 - sizeof(flags) - 32).Write(tx.GetWitnessHash().begin(), 32).Write((unsigned char*)&flags, sizeof(flags)).Finalize(hashCacheEntry.begin());
-            AssertLockHeld(cs_main); //TODO: Remove this requirement by making CuckooCache not require external locks
+            AssertLockHeld(cs_main); // TODO: Remove this requirement by making CuckooCache not require external locks
             if (scriptExecutionCache.contains(hashCacheEntry, !cacheFullScriptStore)) {
                 return true;
             }
@@ -2250,7 +2275,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     // BIP30 checking again.
     assert(pindex->pprev);
     CBlockIndex* pindexBIP34height = pindex->pprev->GetAncestor(chainparams.GetConsensus().BIP34Height);
-    //Only continue to enforce if we're below BIP34 activation height or the block hash at that height doesn't correspond.
+    // Only continue to enforce if we're below BIP34 activation height or the block hash at that height doesn't correspond.
     fEnforceBIP30 = fEnforceBIP30 && (!pindexBIP34height || !(pindexBIP34height->GetBlockHash() == chainparams.GetConsensus().BIP34Hash));
 
     // TODO: Remove BIP30 checking from block height 1,983,702 on, once we have a
@@ -2372,16 +2397,16 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
             contractQueue.push(tx.contract);
         while (!contractQueue.empty()) {
             Contract cur = std::move(contractQueue.front());
-            std::cout << cur.args[0] <<std::endl;
+            std::cout << cur.args[0] << std::endl;
             contractQueue.pop();
-            cout << "Contract Queue Size:"<<contractQueue.size() << endl;
+            cout << "Contract Queue Size:" << contractQueue.size() << endl;
             std::vector<Contract> contractCall;
             CTransactionRef ptx = ProcessContractTx(cur, view, contractCall);
             if (ptx) {
                 block.vvtx.push_back(ptx);
                 blockundo.vtxundo.push_back(CTxUndo());
                 UpdateCoins(*ptx, view, blockundo.vtxundo.back(), pindex->nHeight);
-                for (Contract &nextContract: contractCall) {
+                for (Contract& nextContract : contractCall) {
                     contractQueue.push(std::move(nextContract));
                 }
             }
@@ -2414,8 +2439,8 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     //      }
     //  }
 
-    //The function write revxxx.dat
-    std::cout << "At lest not die hear" <<std::endl;
+    // The function write revxxx.dat
+    std::cout << "At lest not die hear" << std::endl;
     if (!WriteUndoDataForBlock(blockundo, state, pindex, chainparams))
         return false;
 
@@ -2518,7 +2543,7 @@ bool CChainState::FlushStateToDisk(
             //             return AbortNode(state, "Failed to write to block index database");
             //         }
             //     }
-                // Finally remove any pruned files
+            // Finally remove any pruned files
             //     if (fFlushForPrune)
             //         UnlinkPrunedFiles(setFilesToPrune);
             //     nLastWrite = nNow;
@@ -2636,15 +2661,15 @@ void static UpdateTip(const CBlockIndex* pindexNew, const CChainParams& chainPar
 }
 
 /** Disconnect m_chain's tip.
-  * After calling, the mempool will be in an inconsistent state, with
-  * transactions from disconnected blocks being added to disconnectpool.  You
-  * should make the mempool consistent again by calling UpdateMempoolForReorg.
-  * with cs_main held.
-  *
-  * If disconnectpool is nullptr, then no disconnected transactions are added to
-  * disconnectpool (note that the caller is responsible for mempool consistency
-  * in any case).
-  */
+ * After calling, the mempool will be in an inconsistent state, with
+ * transactions from disconnected blocks being added to disconnectpool.  You
+ * should make the mempool consistent again by calling UpdateMempoolForReorg.
+ * with cs_main held.
+ *
+ * If disconnectpool is nullptr, then no disconnected transactions are added to
+ * disconnectpool (note that the caller is responsible for mempool consistency
+ * in any case).
+ */
 bool CChainState::DisconnectTip(CValidationState& state, const CChainParams& chainparams, DisconnectedBlockTransactions* disconnectpool)
 {
     CBlockIndex* pindexDelete = m_chain.Tip();
@@ -3389,8 +3414,8 @@ static bool FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigned int n
     }
 
     // sort the blk.dat --20220316
-    if(vinfoBlockFile[nFile].nSize + nAddSize >= MAX_BLOCKFILE_SIZE) {
-        LogPrintf("Blk is full! Reoder the block in nFile:%i\n",nFile);
+    if (vinfoBlockFile[nFile].nSize + nAddSize >= MAX_BLOCKFILE_SIZE) {
+        LogPrintf("Blk is full! Reoder the block in nFile:%i\n", nFile);
         std::vector<std::pair<int, CBlockIndex*>> vSortedByHeight;
         vSortedByHeight.reserve(mapBlockIndex.size());
         for (const std::pair<const uint256, CBlockIndex*>& item : mapBlockIndex) {
@@ -3405,17 +3430,17 @@ static bool FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigned int n
         unsigned int init_pos = 0;
 
         BlockFileSeq().Allocate(vinfoBlockFile[nFile].nSize, temp_out_of_space);
-        
+
         if (temp_out_of_space) {
             return AbortNode("Disk space is low!", _("Error: Disk space is low!"));
         }
-        for(auto &item : sliceSorted) {
+        for (auto& item : sliceSorted) {
             CBlockIndex* pindex = item.second;
             CBlock pblock;
             unsigned int nBlockSize = ::GetSerializeSize(pblock, CLIENT_VERSION);
 
-            ReadBlockFromDisk(pblock,pindex,chainparams.GetConsensus());
-            WriteBlockToTempBlk(pblock,init_pos,chainparams.MessageStart());
+            ReadBlockFromDisk(pblock, pindex, chainparams.GetConsensus());
+            WriteBlockToTempBlk(pblock, init_pos, chainparams.MessageStart());
             pindex->nDataPos = init_pos;
             init_pos = nBlockSize + init_pos;
         }
@@ -3423,10 +3448,9 @@ static bool FindBlockPos(FlatFilePos& pos, unsigned int nAddSize, unsigned int n
         LogPrintf("Tmp.blk is created. Start replacement.\n");
         BlockFileSeq().Remove(nFile);
         BlockFileSeq().RenameTmp(nFile);
-
     }
-    
-    //sorted end
+
+    // sorted end
     if (!fKnown) {
         while (vinfoBlockFile[nFile].nSize + nAddSize >= MAX_BLOCKFILE_SIZE) {
             nFile++;
@@ -3896,19 +3920,17 @@ static FlatFilePos SaveBlockToDisk(const CBlock& block, int nHeight, const CChai
          * block with their scheme. Therefore, we split each block to each dat and named
          * it with its merkle hash. However, if use this framework to store, bitcoin framework
          * could and should not use reindex caused by rev use the same flatfilepos to reverse
-         * 
+         *
          */
         blockPos.hash = block.GetHash();
         blockPos.nPos = 0;
-        if (!WriteBlockToDisk(block, blockPos, chainparams.MessageStart(),nHeight)) {
+        if (!WriteBlockToDisk(block, blockPos, chainparams.MessageStart(), nHeight)) {
             AbortNode("Failed to write block");
             return FlatFilePos();
         }
-        
     }
     return blockPos;
 }
-
 
 
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
@@ -4009,8 +4031,8 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         // belt-and-suspenders.
         bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus());
 
-        //Check CheckBlock output
-        LogPrintf("[ProcessNewBlock > CheckBlock] output:%d\n",ret);
+        // Check CheckBlock output
+        LogPrintf("[ProcessNewBlock > CheckBlock] output:%d\n", ret);
         if (ret) {
             // Store to disk
             ret = ::ChainstateActive().AcceptBlock(pblock, state, chainparams, &pindex, fForceProcessing, nullptr, fNewBlock);
@@ -4235,8 +4257,9 @@ FILE* OpenBlockFile(const FlatFilePos& pos, bool fReadOnly)
     return BlockFileSeq().Open(pos, fReadOnly);
 }
 
-//Overloading the temp file
-FILE* OpenBlockFile(unsigned int nPos, bool fReadOnly) {
+// Overloading the temp file
+FILE* OpenBlockFile(unsigned int nPos, bool fReadOnly)
+{
     return BlockFileSeq().Open(nPos, fReadOnly);
 }
 

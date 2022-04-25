@@ -182,7 +182,7 @@ static int call_rt(const uint256& contract, const std::vector<std::string> &args
 bool ProcessContract(const Contract &contract, std::vector<CTxOut> &vTxOut, std::vector<uchar> &state, CAmount balance,
                      std::vector<Contract> &nextContract)
 {
-    std::cout<< "ITS IN" << std::endl;
+    // std::cout<< "ITS IN" << std::endl;
     if (contract.action == contract_action::ACTION_NEW) {
         fs::path new_dir = GetContractsDir() / contract.address.GetHex();
         fs::create_directories(new_dir);
@@ -203,34 +203,34 @@ bool ProcessContract(const Contract &contract, std::vector<CTxOut> &vTxOut, std:
         }
 
     } else if (contract.action == contract_action::ACTION_CALL) {
-        std::cout<< "CALL" << std::endl;
+        // std::cout<< "CALL" << std::endl;
         if (call_rt(contract.address, contract.args, vTxOut, state, nextContract) < 0) {
             /* TODO: perform state recovery */
-            LogPrintf("call out failed\n");
+            // LogPrintf("call out failed\n");
             return false;
         }
     }
 
     // if(contract.usage == contract_usage::USAGE_SYS) {
-        LogPrintf("Recieve Contract: Init cmanager\n");
+        // LogPrintf("Recieve Contract: Init cmanager\n");
         CBlockContractManager cmanager{};
-        LogPrintf("Get cmanager path\n");
+        // LogPrintf("Get cmanager path\n");
         fs::path managerpath = GetCPORDir() / "cmanager.dat";
-        LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
+        // LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
         CAutoFile cfilemanager(fsbridge::fopen(managerpath ,"rb"), SER_DISK, CLIENT_VERSION);
         if(!cmanager.isInit()) {
             
             if(cfilemanager.IsNull()) {
-            LogPrintf("cmanager.dat not found... create 1\n");
+            // LogPrintf("cmanager.dat not found... create 1\n");
             cmanager.InitParams();
             cmanager.InitKey();
             cmanager.setInit();
             } else {
-                LogPrintf("cmanager.dat serializing\n");
+                // LogPrintf("cmanager.dat serializing\n");
               cfilemanager >> cmanager ;
             }
         }
-        LogPrintf("Create ipfsContract\n");
+        // LogPrintf("Create ipfsContract\n");
 
         //TODO: Append Contract and state into cmanager
 

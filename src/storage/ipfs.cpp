@@ -203,14 +203,14 @@ void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
     Contract contract;
     contract.address = contractHash;
     LogPrintf("DynamicStoreBlocks\n");
-    // fs::path csvPath = GetDataDir() / "dynamic.csv";
+    fs::path csvPath = GetDataDir() / "dynamic.csv";
     IpfsContract ipfsCon(contract);
-    // std::fstream csvStream;
+    std::fstream csvStream;
     if(ipfsCon.findUser(RegisterKey) == -1) return;
-    // csvStream.open(csvPath.string(),ios::app);
+    csvStream.open(csvPath.string(),ios::app);
     int recvContractNum = ipfsCon.getSavedBlock(RegisterKey).size() + already_stored_num;
-    // csvStream << recvContractNum <<std::endl; 
-    if (recvContractNum < ipfsCon.theContractState.num_blocks / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
+    csvStream << recvContractNum <<std::endl; 
+    if (recvContractNum < (ipfsCon.theContractState.num_blocks + already_stored_num) / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
         std::sort(ipfsCon.aBlocks,
             ipfsCon.aBlocks + ipfsCon.theContractState.num_blocks,
             blockNumCompare);
@@ -244,9 +244,10 @@ void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
                 CTransactionRef tx;
                 CCoinControl no_coin_control;
                 SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
+                saveBlocks ++;
             }
         }
-    } else if (recvContractNum > ipfsCon.theContractState.num_blocks / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
+    } else if (recvContractNum > (ipfsCon.theContractState.num_blocks + already_stored_num) / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
         std::sort(ipfsCon.aBlocks,
             ipfsCon.aBlocks + ipfsCon.theContractState.num_blocks,
             blockNumDESC);
@@ -255,7 +256,7 @@ void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
         CTxDestination dest = getDest(pwallet);
         EnsureWalletIsUnlocked(pwallet);
         for (int i = 0; i < ipfsCon.theContractState.num_blocks; ++i) {
-            if (vStoredBlock.find(uint256S(ipfsCon.aBlocks[i].merkleRoot)) != vStoredBlock.end() && saveBlocks > ipfsCon.theContractState.num_blocks / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
+            if (vStoredBlock.find(uint256S(ipfsCon.aBlocks[i].merkleRoot)) != vStoredBlock.end() && ipfsCon.aBlocks[i].nBlockSavers > ipfsCon.theContractState.num_replication && saveBlocks > ipfsCon.theContractState.num_blocks / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
                 // TODO: UnPinFromIPFS
                 // PinIPFS(ipfsCon.aBlocks[i].CIDHash);
                 // PinIPFS(ipfsCon.aBlocks[i].tagCID);
@@ -277,6 +278,7 @@ void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
                 CTransactionRef tx;
                 CCoinControl no_coin_control;
                 SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
+                saveBlocks--;
             }
         }
     }

@@ -819,16 +819,23 @@ int local_cpor_tag_file(std::string str, uint256 hash, CPOR_key* pkey){
 	tagfile = fsbridge::fopen(tagfilepath, "w");
     
 	if(!tagfile) return -1;
-	tfile = fsbridge::fopen(tfilepath, "w");
+  if(!fs::exists(tfilepath)){
+	  tfile = fsbridge::fopen(tfilepath, "w");
+	  if(!tfile) return -1;
+    /* Calculate the number cpor blocks in the file */
+    numfileblocks = (size/cNewParams.block_size);
+    if(size%cNewParams.block_size) numfileblocks++;
 
-	if(!tfile) return -1;
-	/* Calculate the number cpor blocks in the file */
-	numfileblocks = (size/cNewParams.block_size);
-	if(size%cNewParams.block_size) numfileblocks++;
+    /* Generate the per-file secrets */
+	  t = cpor_create_t(pkey->global, numfileblocks, cNewParams.prf_key_size, cNewParams.num_sectors);
+  } else {
+    t = UnserializeT(readFileToUnsignedChar(tfilepath.c_str()));
+  }
+
+	
 	
 
-	/* Generate the per-file secrets */
-	t = cpor_create_t(pkey->global, numfileblocks, cNewParams.prf_key_size, cNewParams.num_sectors);
+	
 
   if(!t) return -1;
 
