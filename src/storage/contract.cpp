@@ -115,7 +115,7 @@ void CBlockContractManager::workingSet(uint256 hash, FlatFilePos pos)
     for (auto it = vWorkingSet.begin(); it != vWorkingSet.end(); ++it) {
         if (it->first == hash) {
             vWorkingSet.insert(vWorkingSet.begin(), *it);
-            vWorkingSet.erase(it);
+            vWorkingSet.erase(it + 1);
             return;
         }
     }

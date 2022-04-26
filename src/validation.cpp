@@ -1413,8 +1413,8 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
     if (fileheader.IsNull()) {
         return error("%s: OpenBlockFile failed for %s", __func__, pos.ToString());
     }
-
-    if (OpenNewBlockFile(pos, true) == nullptr) {
+    FILE* blockfile = OpenNewBlockFile(pos, true);
+    if (blockfile == nullptr) {
         CBlockContractManager cmanager{};
         CBlock block;
         fs::path managerpath = GetCPORDir() / "cmanager.dat";
@@ -1440,7 +1440,7 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
         cmanager.workingSet(block.GetHash(), pos);
         fileout.fclose();
     }
-    CAutoFile filein(OpenNewBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    CAutoFile filein(blockfile, SER_DISK, CLIENT_VERSION);
     try {
         CMessageHeader::MessageStartChars blk_start;
         unsigned int blk_size;
