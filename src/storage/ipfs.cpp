@@ -74,26 +74,28 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
     EnsureWalletIsUnlocked(pwallet);
 
 
-    // std::cout << "CID: " << msg.CID << ",TagCID: " << msg.TagCID << ",ChallengeCID: " << msg.firstChallengeCID <<std::endl;
+    LogPrintf("CID: %s,TagCID: %s,ChallengeCID: %s\n",msg.CID,msg.TagCID,msg.firstChallengeCID);
     if (vStoredBlock.find(msg.hash) != vStoredBlock.end()) return;
     PinIPFS(msg.CID);
     PinIPFS(msg.TagCID);
     std::string block = GetFromIPFS(msg.CID);
     std::string tag = GetFromIPFS(msg.TagCID);
     std::string challenge = GetFromIPFS(msg.firstChallengeCID);
+    LogPrintf("IPFS get cmp\n");
     // std::cout << "Get All needed file cmp" <<std::endl;
 
     CPOR_challenge* pchallenge = UnserializeChallenge(StrHex(challenge));
 
     CPOR_proof* pproof = cpor_prove_file(block, StrHex(tag), pchallenge);
     std::string proofCID = AddToIPFS(HexStr(SerializeProof(pproof)));
+    LogPrintf("Serialize IPFS cmp\n");
     // std::cout << "Unserialize CPOR_challenge" << UnserializeChallenge(StrHex(challenge))->I <<std::endl;
     Contract contract;
 
     contract.action = contract_action::ACTION_CALL;
     contract.usage = contract_usage::USAGE_USER;
     contract.address = contractHash;
-    // LogPrintf("IPFS signup output: %s\n",contractHash.ToString());
+    LogPrintf("IPFS signup output: %s\n",contractHash.ToString());
 
     contract.args.push_back("save_block");
     contract.args.push_back(msg.hash.ToString());
@@ -119,7 +121,7 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
     cblock.TagCID = msg.TagCID;
     vStoredBlock.insert(std::pair<uint256, IpfsStoredBlock>(msg.hash, cblock));
 
-    // LogPrintf("Process Cmp\n");
+    LogPrintf("Process Cmp\n");
     DynamicStoreBlocks(1);
 }
 
