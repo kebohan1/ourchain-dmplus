@@ -40,7 +40,7 @@ void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
         ReadKey();
 
         LogPrintf("cold pool size: %d\n", vColdPool.size());
-        if (vStorageContract.size() == 0 ) {
+        if (vStorageContract.size() == 0) {
             csvStream.close();
             vColdPool.push_back(pair);
             return;
@@ -53,7 +53,7 @@ void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
             FILE* f = fsbridge::fopen(newBlockPath, "rb");
             // fseek(f, pos.nPos, SEEK_SET);
             CAutoFile filein(f, SER_DISK, CLIENT_VERSION);
-            if(filein.IsNull()) return;
+            if (filein.IsNull()) return;
             try {
                 filein >> block;
             } catch (const std::exception& e) {
@@ -226,16 +226,10 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
         }
     }
 
-    
+
     if (flag) {
-        
         for (auto& block : vDeployList) {
             vColdBlock.insert(std::pair<uint256, CBlockEach>(block.hash, block));
-            fs::path blockPath = GetBlocksDir() / strprintf("blk_%s.dat", block.hash.ToString());
-
-            if (fs::exists(blockPath)) {
-                fs::remove(blockPath);
-            }
         }
     }
     csvStream.close();
@@ -250,6 +244,16 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
     //     }
     // }
 }
+
+void removeBlock(std::string hash)
+{
+    fs::path blockPath = GetBlocksDir() / strprintf("blk_%s.dat", hash);
+
+    if (fs::exists(blockPath)) {
+        fs::remove(blockPath);
+    }
+}
+
 void CBlockContractManager::receiveContract(IpfsContract contract)
 {
     LOCK(cs_main);
@@ -325,6 +329,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                 if (ret == 1) {
                     // std::cout << "Proof success!" <<std::endl;
                     iter->second.nReputation++;
+                    removeBlock(blockIter->second.hash.ToString());
                 } else {
                     // std::cout << "Proof failed!" <<std::endl;
                     iter->second.nReputation--;
@@ -350,6 +355,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                     newBlock.tfileCID = contract.getArgs()[5];
                     newBlock.hash = uint256S(contract.getArgs()[1].c_str());
                     vColdBlock.insert(std::pair<uint256, CBlockEach>(newBlock.hash, newBlock));
+                    removeBlock(newBlock.hash.ToString());
                 }
                 destroy_cpor_challenge(challenge);
                 destroy_cpor_proof(proof);

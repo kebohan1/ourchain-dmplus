@@ -71,7 +71,8 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
 
     CWallet* const pwallet = getWallet();
     CTxDestination dest = getDest(pwallet);
-    EnsureWalletIsUnlocked(pwallet);
+    // EnsureWalletIsUnlocked(pwallet);
+    if(pwallet->IsLocked()) return;
 
 
     LogPrintf("CID: %s,TagCID: %s,ChallengeCID: %s\n",msg.CID,msg.TagCID,msg.firstChallengeCID);
