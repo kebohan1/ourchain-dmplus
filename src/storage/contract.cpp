@@ -130,6 +130,7 @@ bool CBlockContractManager::lookupWorkingSet(FlatFilePos pos)
 {
     for (auto& it : vWorkingSet) {
         if (pos.hash == it.first) {
+            workingSet(pos.hash, pos);
             return true;
         }
     }
@@ -138,8 +139,11 @@ bool CBlockContractManager::lookupWorkingSet(FlatFilePos pos)
 
 bool CBlockContractManager::lookupColdPool(FlatFilePos pos)
 {
-    for (auto& it : vColdPool) {
-        if (pos.hash == it.first) {
+    // for (auto& it : vColdPool) {
+    for(auto it = vColdPool.begin(); it != vColdPool.end(); it++){
+        if (pos.hash == it->first) {
+          workingSet(pos.hash,pos);
+          vColdPool.erase(it + 1);
             return true;
         }
     }
