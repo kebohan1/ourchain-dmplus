@@ -51,9 +51,9 @@ void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
             fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat", item.first.ToString());
             FlatFilePos pos(item.second);
             FILE* f = fsbridge::fopen(newBlockPath, "rb");
-            fseek(f, pos.nPos, SEEK_SET);
+            // fseek(f, pos.nPos, SEEK_SET);
             CAutoFile filein(f, SER_DISK, CLIENT_VERSION);
-
+            if(filein.IsNull()) return;
             try {
                 filein >> block;
             } catch (const std::exception& e) {
