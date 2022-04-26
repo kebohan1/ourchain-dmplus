@@ -40,8 +40,8 @@ class IpfsStorageManager {
   std::string RegisterKey;
 
     IpfsStorageManager(){};
-    void receiveMessage(std::vector<CStorageMessage> msgs);
-    void receiveChallengeMessage(std::vector<ChallengeMessage> msgs);
+    void receiveMessage(CStorageMessage msgs);
+    void receiveChallengeMessage(ChallengeMessage msgs);
     void init();
     void FlushDisk();
     void DynamicStoreBlocks(int);

@@ -1194,33 +1194,33 @@ static string ReadIPFSHashFromDisk(string pindex)
 // }
 
 
-void ProcessIPFSBlock(std::vector<CStorageMessage>& msg)
-{
-    IpfsStorageManager imanager{};
-    // LogPrintf("Get cmanager path\n");
-    fs::path managerpath = GetCPORDir() / "imanager.dat";
-    // LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
-    CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
-    // if(!cmanager.isInit()) {
+// void ProcessIPFSBlock(std::vector<CStorageMessage>& msg)
+// {
+//     IpfsStorageManager imanager{};
+//     // LogPrintf("Get cmanager path\n");
+//     fs::path managerpath = GetCPORDir() / "imanager.dat";
+//     // LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
+//     CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
+//     // if(!cmanager.isInit()) {
 
-    //     if(cfilemanager.IsNull()) {
-    //         LogPrintf("imanager.dat not found... create 1\n");
-    //         // cmanager.InitParams();
-    //         // cmanager.InitKey();
-    //         // cmanager.setInit();
-    //     } else {
-    //         LogPrintf("cmanager.dat serializing\n");
-    //        cfilemanager >> imanager ;
-    //     }
-    // }
-    if (!cfilemanager.IsNull()) {
-        cfilemanager >> imanager;
-    }
-    imanager.receiveMessage(msg);
-    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath, "wb"), SER_DISK, CLIENT_VERSION);
-    size_t nSize = GetSerializeSize(imanager, cfilemanagerOut.GetVersion());
-    cfilemanagerOut << imanager << nSize;
-}
+//     //     if(cfilemanager.IsNull()) {
+//     //         LogPrintf("imanager.dat not found... create 1\n");
+//     //         // cmanager.InitParams();
+//     //         // cmanager.InitKey();
+//     //         // cmanager.setInit();
+//     //     } else {
+//     //         LogPrintf("cmanager.dat serializing\n");
+//     //        cfilemanager >> imanager ;
+//     //     }
+//     // }
+//     if (!cfilemanager.IsNull()) {
+//         cfilemanager >> imanager;
+//     }
+//     // imanager.receiveMessage(msg);
+//     CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath, "wb"), SER_DISK, CLIENT_VERSION);
+//     size_t nSize = GetSerializeSize(imanager, cfilemanagerOut.GetVersion());
+//     cfilemanagerOut << imanager << nSize;
+// }
 
 //////////////////////////////////////////////////////////////////////////////
 //

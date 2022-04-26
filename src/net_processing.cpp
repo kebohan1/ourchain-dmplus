@@ -1825,7 +1825,7 @@ void static ProcessOrphanTx(CConnman* connman, std::set<uint256>& orphan_work_se
 bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, int64_t nTimeReceived, const CChainParams& chainparams, CConnman* connman, const std::atomic<bool>& interruptMsgProc, bool enable_bip61)
 {
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->GetId());
-    // LogPrintf("received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->GetId());
+    LogPrintf("received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->GetId());
     if (gArgs.IsArgSet("-dropmessagestest") && GetRand(gArgs.GetArg("-dropmessagestest", 0)) == 0)
     {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
@@ -3149,7 +3149,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
     if (strCommand == NetMsgType::STORAGEREQEUST) {
       LOCK(cs_main);
-      std::vector<CStorageMessage> message;
+      CStorageMessage message;
       uint256 hash;
       vRecv >> message ;
       std::cout << "STORAGEREQUEST recv cmp"<<std::endl;
@@ -3161,7 +3161,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
     if (strCommand == NetMsgType::CHALLENGE) {
       LOCK(cs_main);
-      std::vector<ChallengeMessage> messages;
+      ChallengeMessage messages;
 
       vRecv >> messages ;
       // std::cout << "CHALLENGE recv cmp"<<std::endl;
@@ -4043,9 +4043,9 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
         if(pto->vStorageMessage.size() != 0) {
             std::cout << "StorageSize: " << pto->vStorageMessage.size() <<",Send msg request to peer=" <<pto->GetId() <<std::endl;
             // LogPrint(BCLog::NET, "Send msg request to peer=%d \n", pto->GetId());
-            // for(auto msg : pto->vStorageMessage) {
-                connman->PushMessage(pto, msgMaker.Make(NetMsgType::STORAGEREQEUST, pto->vStorageMessage));
-            // }
+            for(auto msg : pto->vStorageMessage) {
+                connman->PushMessage(pto, msgMaker.Make(NetMsgType::STORAGEREQEUST, msg));
+            }
             std::cout << "Storage Request end"  <<std::endl;
             pto->vStorageMessage.clear();
         }
@@ -4054,8 +4054,10 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
         // Message: Challenge
         //
         if(pto->vChallengeMessage.size() != 0) {
-            connman->PushMessage(pto, msgMaker.Make(NetMsgType::CHALLENGE, pto->vChallengeMessage));
-            std::cout << "CHALLENGE Request end"  <<std::endl;
+          for(auto& challenge: pto->vChallengeMessage) {
+            connman->PushMessage(pto, msgMaker.Make(NetMsgType::CHALLENGE, challenge));           
+          }
+          std::cout << "CHALLENGE Request end"  <<std::endl;
             pto->vChallengeMessage.clear();
         }
     }
