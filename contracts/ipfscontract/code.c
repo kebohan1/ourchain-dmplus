@@ -1168,6 +1168,9 @@ int validateProof(char* proofCID, char* challengeCID, Block* block) {
   CPOR_t* t = UnserializeT(StrHex(tfile_ret, strlen(tfile_ret)));
   int ret = cpor_verify_proof(challenge->global, proof, challenge, t->k_prf,
                               t->alpha);
+  destroy_cpor_challenge(challenge);
+  destroy_cpor_proof(proof);
+  destroy_cpor_t(t);
   err_printf("Validate Proof: %d\n", ret);
   return ret;
 }
@@ -1353,7 +1356,8 @@ static int saveProof(char* merkle_root, char* proofCID, char* challengeCID,
   cProofBlock->time = time;
 
   cblock->array_proof_block[cblock->num_proof] = *cProofBlock;
-
+  free(cblock);
+  free(cProofBlock);
   return 1;
 }
 
@@ -1447,7 +1451,7 @@ int contract_main(int argc, char** argv) {
     initBlockArray();
     err_printf("compute_contract_size()\n");
     theContractState.size_contract = compute_contract_size();
-    theContractState.num_replication = 3;
+    theContractState.num_replication = 31;
 
     writeState();
   } else {

@@ -212,7 +212,7 @@ bool ProcessContract(const Contract &contract, std::vector<CTxOut> &vTxOut, std:
     }
 
     // if(contract.usage == contract_usage::USAGE_SYS) {
-        // LogPrintf("Recieve Contract: Init cmanager\n");
+        LogPrintf("Recieve Contract: Init cmanager\n");
         CBlockContractManager cmanager{};
         // LogPrintf("Get cmanager path\n");
         fs::path managerpath = GetCPORDir() / "cmanager.dat";

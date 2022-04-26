@@ -308,7 +308,10 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                             FILE* tfile = fsbridge::fopen(tfilepath, "w");
                             write_cpor_t_without_key(t, tfile);
                             blockIter->second.tfileCID = contract.getArgs()[5];
+                            fclose(tfile);
                         }
+                        destroy_cpor_challenge(challenge);
+                        destroy_cpor_proof(proof);
                     } else {
                         ret = cpor_verify_file(blockIter->second.hash.ToString(),
                             UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[6]))),
@@ -343,10 +346,13 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                     fs::path tfilepath = GetDataDir() / "cpor" / "Tfiles" / contract.getAddress().ToString().append(".t");
                     FILE* tfile = fsbridge::fopen(tfilepath, "w");
                     write_cpor_t_without_key(t, tfile);
+                    fclose(tfile);
                     newBlock.tfileCID = contract.getArgs()[5];
                     newBlock.hash = uint256S(contract.getArgs()[1].c_str());
                     vColdBlock.insert(std::pair<uint256, CBlockEach>(newBlock.hash, newBlock));
                 }
+                destroy_cpor_challenge(challenge);
+                destroy_cpor_proof(proof);
             }
 
             csvStream.close();

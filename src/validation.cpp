@@ -1259,6 +1259,7 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     fs::path managerpath = GetCPORDir() / "cmanager.dat";
     // LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
     CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
+    LogPrintf("WriteBlockToDisk\n");
     if (!cmanager.isInit()) {
         if (cfilemanager.IsNull()) {
             // LogPrintf("cmanager.dat not found... create 1\n");
@@ -1319,9 +1320,9 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
 
     // Open history file to read
     // CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
-    fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat", pos.hash.ToString());
-    FILE* f = fsbridge::fopen(newBlockPath, "rb");
-    fseek(f, pos.nPos, SEEK_SET);
+    // fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat", pos.hash.ToString());
+    // FILE* f = fsbridge::fopen(newBlockPath, "rb");
+    // fseek(f, pos.nPos, SEEK_SET);
     CAutoFile filein(OpenNewBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
     std::fstream csvStream;
     fs::path csvPath = GetDataDir() / "read.csv";
@@ -1331,14 +1332,15 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     CBlockContractManager cmanager{};
     fs::path managerpath = GetCPORDir() / "cmanager.dat";
     CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
+    // LogPrintf("ReadBlockFromDisk\n");
     if (!cmanager.isInit()) {
         if (cfilemanager.IsNull()) {
-            LogPrintf("cmanager.dat not found... create 1\n");
+            // LogPrintf("cmanager.dat not found... create 1\n");
             cmanager.InitParams();
             cmanager.InitKey();
             cmanager.setInit();
         } else {
-            LogPrintf("cmanager.dat serializing\n");
+            // LogPrintf("cmanager.dat serializing\n");
             cfilemanager >> cmanager;
         }
     }
@@ -1403,23 +1405,23 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start)
 {
     FlatFilePos hpos = pos;
+    // LogPrintf("ReadRawBlock\n");
     // hpos.nPos -= 8; // Seek back 8 bytes for meta header
     fs::path newBlockPath = GetBlocksDir() / strprintf("blk_head_%s.dat", pos.hash.ToString());
     FILE* f = fsbridge::fopen(newBlockPath, "rb");
     CAutoFile fileheader(f, SER_DISK, CLIENT_VERSION);
-    CAutoFile filein(OpenNewBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
     if (fileheader.IsNull()) {
         return error("%s: OpenBlockFile failed for %s", __func__, pos.ToString());
     }
 
-    if (filein.IsNull()) {
+    if (OpenNewBlockFile(pos, true) == nullptr) {
         CBlockContractManager cmanager{};
         CBlock block;
         fs::path managerpath = GetCPORDir() / "cmanager.dat";
         CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
         if (!cmanager.isInit()) {
             if (cfilemanager.IsNull()) {
-                LogPrintf("cmanager.dat not found... create 1\n");
+                // LogPrintf("cmanager.dat not found... create 1\n");
                 cmanager.InitParams();
                 cmanager.InitKey();
                 cmanager.setInit();
@@ -1432,11 +1434,13 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
         if (block.IsNull())
             return error("Faile to read block from IPFS");
 
-
+        
         CAutoFile fileout(OpenNewBlockFile(pos), SER_DISK, CLIENT_VERSION);
         fileout << block;
+        cmanager.workingSet(block.GetHash(), pos);
+        fileout.fclose();
     }
-
+    CAutoFile filein(OpenNewBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
     try {
         CMessageHeader::MessageStartChars blk_start;
         unsigned int blk_size;
@@ -2851,6 +2855,7 @@ bool CChainState::ConnectTip(CValidationState& state, const CChainParams& chainp
     nTimeTotal += nTime6 - nTime1;
     LogPrint(BCLog::BENCH, "  - Connect postprocess: %.2fms [%.2fs (%.2fms/blk)]\n", (nTime6 - nTime5) * MILLI, nTimePostConnect * MICRO, nTimePostConnect * MILLI / nBlocksTotal);
     LogPrint(BCLog::BENCH, "- Connect block: %.2fms [%.2fs (%.2fms/blk)]\n", (nTime6 - nTime1) * MILLI, nTimeTotal * MICRO, nTimeTotal * MILLI / nBlocksTotal);
+    // LogPrintf("- Connect block: %.2fms [%.2fs (%.2fms/blk)]\n", (nTime6 - nTime1) * MILLI, nTimeTotal * MICRO, nTimeTotal * MILLI / nBlocksTotal);
 
     connectTrace.BlockConnected(pindexNew, std::move(pthisBlock));
     return true;
@@ -2971,7 +2976,9 @@ bool CChainState::ActivateBestChainStep(CValidationState& state, const CChainPar
 
         // Connect new blocks.
         for (CBlockIndex* pindexConnect : reverse_iterate(vpindexToConnect)) {
+          // LogPrintf("Connect block\n");
             if (!ConnectTip(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace, disconnectpool)) {
+                // LogPrintf("")
                 if (state.IsInvalid()) {
                     // The block violates a consensus rule.
                     if (state.GetReason() != ValidationInvalidReason::BLOCK_MUTATED) {

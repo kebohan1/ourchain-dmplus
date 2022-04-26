@@ -15,7 +15,7 @@ RUN apt-get update
 RUN apt-get install -y libdb4.8-dev libdb4.8++-dev libcpprest-dev bsdmainutils
 RUN cd ~/ourchain-dmplus && git checkout contract_call_by_sys_test && ./autogen.sh && \
 ./configure CPPFLAGS="-I${BDB_PREFIX}/include/ -O2" LDFLAGS="-L${BDB_PREFIX}/lib/" CRYPTO_LIBS="-lboost_system -lcrypto -lssl -lcpprest" --without-gui && \
-make -j 2 && make install && ldconfig
+make -j 12 && make install && ldconfig
 RUN cd ~ && wget https://golang.org/dl/go1.18.1.linux-amd64.tar.gz && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.18.1.linux-amd64.tar.gz
 ENV PATH=$PATH:/usr/local/go/bin
 RUN go version
