@@ -136,8 +136,7 @@ void IpfsStorageManager::receiveChallengeMessage(std::vector<ChallengeMessage> m
             std::string tag = GetFromIPFS(vStoredBlock.find(item.first)->second.TagCID);
             CPOR_challenge* pchallenge = UnserializeChallenge(StrHex(challenge));
 
-            CPOR_proof* pproof = cpor_prove_file(block, StrHex(tag), pchallenge);
-            std::string proofCID = AddToIPFS(HexStr(SerializeProof(pproof)));
+            std::string proofCID = AddToIPFS(HexStr(SerializeProof(cpor_prove_file(block, StrHex(tag), pchallenge))));
             LogPrintf("Challenge prove created\n");
             Contract contract;
 
@@ -163,7 +162,7 @@ void IpfsStorageManager::receiveChallengeMessage(std::vector<ChallengeMessage> m
             CCoinControl no_coin_control;
             SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
 
-            // destroy_cpor_challenge(pchallenge);
+            destroy_cpor_challenge(pchallenge);
             // destroy_cpor_proof(pproof);
         }
     }
