@@ -1279,6 +1279,7 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
     cfilemanagerOut << cmanager << nSize;
     fs::path imanagerPath = GetDataDir() / "cpor" / "imanager.dat";
+    LogPrintf("WriteBlockToDisk cmp\n");
     // if(fs::exists(imanagerPath)){
     //   IpfsStorageManager imanager;
     //   //TODO: Dynamic choosing storing blocks
