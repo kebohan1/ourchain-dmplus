@@ -45,8 +45,10 @@ void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
             vColdPool.push_back(pair);
             return;
         }
+        int i = 0;
         for (auto& item : vColdPool) {
-            csvStream << time(NULL) << "," << item.first.ToString() << ",0\n";
+            if(i > COLDPOOL_MAX) break;
+            csvStream << time(NULL) << "," << item.first.ToString()  << ",0\n";
             CBlock block;
             {
                 LOCK(cs_main);
@@ -102,13 +104,19 @@ void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
         // Find Contract To deploy
         // If yes:
         // std::cout << "deploy" << std::endl;
+        csvStream.close();
         if (deployContract(vDeployList)) {
-            vColdPool.clear();
+            vColdPool.erase(vColdPool.begin(), vColdPool.begin() + COLDPOOL_MAX);
         }
 
 
-        csvStream.close();
+        
         // vColdPool.clear();
+    }
+    for(auto p: vColdPool) {
+        if(p.first == pair.first) {
+            return;
+        }
     }
     vColdPool.push_back(pair);
 }

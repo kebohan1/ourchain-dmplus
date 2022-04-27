@@ -1451,7 +1451,7 @@ int contract_main(int argc, char** argv) {
     initBlockArray();
     err_printf("compute_contract_size()\n");
     theContractState.size_contract = compute_contract_size();
-    theContractState.num_replication = 31;
+    theContractState.num_replication = 3;
 
     writeState();
   } else {
