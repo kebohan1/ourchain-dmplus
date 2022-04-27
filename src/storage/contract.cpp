@@ -115,11 +115,12 @@ void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
 
 void CBlockContractManager::workingSet(uint256 hash, FlatFilePos pos)
 {
-    // std::cout << "workingset size:" << vWorkingSet.size() <<std::endl;
+    std::cout << "workingset size:" << vWorkingSet.size() <<std::endl;
     for (auto it = vWorkingSet.begin(); it != vWorkingSet.end(); ++it) {
         if (it->first == hash) {
-            vWorkingSet.insert(vWorkingSet.begin(), *it);
-            vWorkingSet.erase(it + 1);
+            auto newPair = *it;
+            vWorkingSet.erase(it);
+            vWorkingSet.insert(vWorkingSet.begin(), newPair);
             return;
         }
     }
