@@ -39,7 +39,7 @@ void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
 
         ReadKey();
 
-        LogPrintf("cold pool size: %d\n", vColdPool.size());
+        // LogPrintf("cold pool size: %d\n", vColdPool.size());
         if (vStorageContract.size() == 0) {
             csvStream.close();
             vColdPool.push_back(pair);
@@ -123,7 +123,7 @@ void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
 
 void CBlockContractManager::workingSet(uint256 hash, FlatFilePos pos)
 {
-    std::cout << "workingset size:" << vWorkingSet.size() <<std::endl;
+    // std::cout << "workingset size:" << vWorkingSet.size() <<std::endl;
     for (auto it = vWorkingSet.begin(); it != vWorkingSet.end(); ++it) {
         if (it->first == hash) {
             auto newPair = *it;
@@ -193,7 +193,7 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
     // Test first contract ipfsvector
 
 
-    std::cout << "Contract Size: " << vStorageContract.size() << std::endl;
+    // std::cout << "Contract Size: " << vStorageContract.size() << std::endl;
     if (vStorageContract.size() == 0) return false;
 
     std::map<std::string, NodeId> nodes;
@@ -205,19 +205,19 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
     if (vColdBlock.size() != 0) {
         for (iter = vDeployList.begin(); iter != vDeployList.end(); iter++) {
             if (vColdBlock.find(iter->hash) != vColdBlock.end()) {
-                LogPrintf("exist: %s, %s\n", vColdBlock.find(iter->hash)->second.hash.ToString(), iter->hash.ToString());
+                // LogPrintf("exist: %s, %s\n", vColdBlock.find(iter->hash)->second.hash.ToString(), iter->hash.ToString());
                 vDeployList.erase(iter); // erase if exist in vcoldblock
             }
         }
     }
 
-    LogPrintf("vDeployList size: %d\n", vDeployList.size());
+    // LogPrintf("vDeployList size: %d\n", vDeployList.size());
     for (auto& Itemcontract : vStorageContract) {
-        LogPrintf("vipfsnode: %d\n", Itemcontract.second.vIPFSNode.size());
+        // LogPrintf("vipfsnode: %d\n", Itemcontract.second.vIPFSNode.size());
         if (Itemcontract.second.vIPFSNode.size() != 0) {
             for (auto& node : Itemcontract.second.vIPFSNode) {
                 // CNode newNode()
-                std::cout << "discontruct ipfsnode vector" << std::endl;
+                // std::cout << "discontruct ipfsnode vector" << std::endl;
                 CAddress addrConnect;
 
                 if (nodes.find(node.second.ip) == nodes.end()) {
@@ -278,7 +278,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
     if (vStorageContract.find(contract.getAddress()) != vStorageContract.end()) {
         std::map<uint256, StorageContract>::iterator iter = vStorageContract.find(contract.getAddress());
         // StorageContract &sContract = vStorageContract.find(contract.getAddress())->second;
-        LogPrintf("local storage size: %d, contract: %d\n", iter->second.vIPFSNode.size(), contract.theContractState.num_ipfsnode);
+        // LogPrintf("local storage size: %d, contract: %d\n", iter->second.vIPFSNode.size(), contract.theContractState.num_ipfsnode);
         // TODO: This position has core dump several times, must repair asap.
         if (contract.theContractState.num_ipfsnode > iter->second.vIPFSNode.size()) {
             for (int i = 0; i < contract.theContractState.num_ipfsnode; ++i) {
@@ -324,7 +324,8 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                             t->k_prf,
                             t->alpha);
                         if (ret) {
-                            fs::path tfilepath = GetDataDir() / "cpor" / contract.getAddress().ToString().append(".t");
+                            fs::path tfilepath = GetDataDir() / "cpor" / "Tfiles"/contract.getAddress().ToString().append(".t");
+                            if(fs::exists(tfilepath)) fs::remove(tfilepath);
                             FILE* tfile = fsbridge::fopen(tfilepath, "w");
                             write_cpor_t_without_key(t, tfile);
                             blockIter->second.tfileCID = contract.getArgs()[5];
@@ -365,6 +366,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                 if (ret) {
                     // TODO 0422: If user didn't push this file to smart contract but recv set push and ignore to upload
                     fs::path tfilepath = GetDataDir() / "cpor" / "Tfiles" / contract.getAddress().ToString().append(".t");
+                    if(fs::exists(tfilepath)) fs::remove(tfilepath);
                     FILE* tfile = fsbridge::fopen(tfilepath, "w");
                     write_cpor_t_without_key(t, tfile);
                     fclose(tfile);
@@ -546,7 +548,7 @@ void CBlockContractManager::challengeBlock(int nHeight)
     if (nHeight > n_last_challenge_height + CHALLENGE_TIME) {
         srand(time(NULL));
         std::cout << "Challenge..." << std::endl;
-        fs::path csvPath = GetDataDir() / "upload.csv";
+        fs::path csvPath = GetDataDir() / "challenge.csv";
         std::fstream csvStream;
         csvStream.open(csvPath.string(), ios::app);
         ChallengeMessage chalmsg;

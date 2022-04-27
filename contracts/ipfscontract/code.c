@@ -1503,7 +1503,7 @@ int contract_main(int argc, char** argv) {
       err_printf("Proof:%d,%s,%s,%s\n", ret, argv[2], argv[3], argv[4]);
       if (ret < 0) return -1;
       // out_clear();
-      out_printf("%d,%s,%s,%s\n", ret, argv[2], argv[3], argv[4]);
+      out_printf("Proof: %d,%s,%s,%s\n", ret, argv[2], argv[3], argv[6]);
 
     } else if (!strcmp(argv[1], "save_block")) {
       /**
@@ -1539,7 +1539,7 @@ int contract_main(int argc, char** argv) {
       err_printf("%d,%s,%s,%s\n", ret, argv[2], argv[3], argv[4]);
       if (ret < 0) return -1;
       // out_clear();
-      out_printf("%d,%s,%s,%s\n", ret, argv[2], argv[3], argv[4]);
+      out_printf("SaveBlock: %d,%s,%s,%s,%d\n", ret, argv[2], argv[3], argv[4], time(NULL));
 
     } else if(!strcmp(argv[1], "remove_block")) {
       /**
@@ -1552,6 +1552,7 @@ int contract_main(int argc, char** argv) {
       if(n_ipfs_index < 0) return -1;
       int ret = removeBlockSaver(argv[2], n_ipfs_index);
       err_printf("Remove: %d,%s,%s\n", ret, argv[2], argv[3]);
+      out_printf("Remove: %d,%s,%s,%d\n", ret, argv[2], argv[3],time(NULL));
       return ret;
     } else if (!strcmp(argv[1], "printAllBlocks")) {
       printAllBlock();

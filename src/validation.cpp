@@ -1280,6 +1280,10 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     cfilemanagerOut << cmanager << nSize;
     fs::path imanagerPath = GetDataDir() / "cpor" / "imanager.dat";
     LogPrintf("WriteBlockToDisk cmp\n");
+    std::fstream csvStream;
+    fs::path csvPath = GetDataDir() / "heightRef.csv";
+    csvStream.open(csvPath.string(), ios::app);
+    csvStream << time(NULL) << "," << chain.Height() << std::endl;
     // if(fs::exists(imanagerPath)){
     //   IpfsStorageManager imanager;
     //   //TODO: Dynamic choosing storing blocks
