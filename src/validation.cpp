@@ -1323,7 +1323,8 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     // fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat", pos.hash.ToString());
     // FILE* f = fsbridge::fopen(newBlockPath, "rb");
     // fseek(f, pos.nPos, SEEK_SET);
-    CAutoFile filein(OpenNewBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    FILE* blockfile = OpenNewBlockFile(pos, true);
+    
     std::fstream csvStream;
     fs::path csvPath = GetDataDir() / "read.csv";
     csvStream.open(csvPath.string(), ios::app);
@@ -1344,7 +1345,8 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
             cfilemanager >> cmanager;
         }
     }
-    if (cmanager.lookupWorkingSet(pos) || cmanager.lookupColdPool(pos)) {
+    if (blockfile != nullptr) {
+        CAutoFile filein(blockfile, SER_DISK, CLIENT_VERSION);
         if (filein.IsNull())
             return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.hash.ToString());
         // Read block from local
@@ -1353,6 +1355,7 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
         } catch (const std::exception& e) {
             return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.hash.ToString());
         }
+        cmanager.workingSet(block.GetHash(),pos);
         csvStream << time(NULL) << "," << pos.hash.ToString() << ",1A\n";
         if (block.IsNull())
             return error("Faile to read block from disk");
