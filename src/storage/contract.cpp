@@ -30,7 +30,7 @@ using namespace std;
 
 void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
 {
-    LOCK(cs_main);
+    
     if (vColdPool.size() > COLDPOOL_MAX) {
         std::vector<CBlockEach> vDeployList;
         fs::path csvPath = GetDataDir() / "upload.csv";
@@ -48,17 +48,21 @@ void CBlockContractManager::appendColdPool(std::pair<uint256, FlatFilePos> pair)
         for (auto& item : vColdPool) {
             csvStream << time(NULL) << "," << item.first.ToString() << ",0\n";
             CBlock block;
-            fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat", item.first.ToString());
-            FlatFilePos pos(item.second);
-            FILE* f = fsbridge::fopen(newBlockPath, "rb");
-            // fseek(f, pos.nPos, SEEK_SET);
-            CAutoFile filein(f, SER_DISK, CLIENT_VERSION);
-            if (filein.IsNull()) return;
-            try {
-                filein >> block;
-            } catch (const std::exception& e) {
-                return;
+            {
+                LOCK(cs_main);
+                fs::path newBlockPath = GetBlocksDir() / strprintf("blk_%s.dat", item.first.ToString());
+                FlatFilePos pos(item.second);
+                FILE* f = fsbridge::fopen(newBlockPath, "rb");
+                // fseek(f, pos.nPos, SEEK_SET);
+                CAutoFile filein(f, SER_DISK, CLIENT_VERSION);
+                if (filein.IsNull()) return;
+                try {
+                    filein >> block;
+                } catch (const std::exception& e) {
+                    return;
+                }
             }
+            
 
 
             // CBLOCK SERIALIZE
@@ -130,7 +134,6 @@ bool CBlockContractManager::lookupWorkingSet(FlatFilePos pos)
 {
     for (auto& it : vWorkingSet) {
         if (pos.hash == it.first) {
-            workingSet(pos.hash, pos);
             return true;
         }
     }
@@ -173,7 +176,7 @@ static void getNodeStat(std::map<std::string, NodeId>& nodes)
 
 bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
 {
-    LOCK(cs_main);
+    
     // sort(vStorageContract.begin(), vStorageContract.end(), [](StorageContract& x, StorageContract& y) { return x.nReputation > y.nReputation; });
     std::fstream csvStream;
     fs::path csvPath = GetDataDir() / "upload.csv";
