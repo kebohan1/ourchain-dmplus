@@ -143,7 +143,8 @@ class CBlockContractManager {
     int ReadKey();
 
     void workingSet(uint256 hash,FlatFilePos);
-
+    std::vector<CBlockEach> pushColdPool();
+    void automaticColdPool();
     void hotColdClassifier(CBlock* block);
     bool lookupColdPool(FlatFilePos pos);
     bool lookupWorkingSet(FlatFilePos pos);

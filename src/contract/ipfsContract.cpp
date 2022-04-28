@@ -79,7 +79,7 @@ void IpfsContract::init()
     LogPrintf("Start read state\n");
     fs::path stateFile = GetDataDir() / "contracts" / address.ToString() / "state";
     FILE* f = fsbridge::fopen(stateFile, "r");
-    // if(!f) return;
+    // if(!f) nInit=0; return;
     LogPrintf("Read whole contract size\n");
     fread(&count, sizeof(int), 1, f);
     // state_read(&count, sizeof(int));
@@ -100,6 +100,7 @@ void IpfsContract::init()
     if (offset != count) {
         LogPrintf("Contract Err:offset = %u  count = %u\n", offset, count);
     }
+    nInit =1;
     fclose(f);
 }
 

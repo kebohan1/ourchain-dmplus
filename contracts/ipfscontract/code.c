@@ -1362,14 +1362,14 @@ static int saveProof(char* merkle_root, char* proofCID, char* challengeCID,
 }
 
 static int removeBlockSaver(char* merkle_root, int index_ipfs) {
-  
   int ret = findBlock(merkle_root);
-  if(ret == -1) return -1;
+  if (ret == -1) return -1;
   Block* nowBlock = &aBlocks[ret];
-  int* newBlockSaver = malloc(sizeof(int) * nowBlock->allocated_blockSavers_size);
+  int* newBlockSaver =
+      malloc(sizeof(int) * nowBlock->allocated_blockSavers_size);
   int index = 0;
-  for(int i = 0; i < nowBlock->nBlockSavers; ++i) {
-    if(nowBlock->blockSavers[i] != index_ipfs) {
+  for (int i = 0; i < nowBlock->nBlockSavers; ++i) {
+    if (nowBlock->blockSavers[i] != index_ipfs) {
       newBlockSaver[index++] = nowBlock->blockSavers[i];
     }
   }
@@ -1524,7 +1524,7 @@ int contract_main(int argc, char** argv) {
        * argv[5]: time
        */
       // if (!(argc == 6 || argc == 10)) return -1;
-      err_printf("argc num = %d\n",argc);
+      err_printf("argc num = %d\n", argc);
       int n_ipfs_index = findIPFSnode(argv[4]);
       err_printf("index:%d\n", n_ipfs_index);
       if (n_ipfs_index < 0) return -1;
@@ -1539,9 +1539,72 @@ int contract_main(int argc, char** argv) {
       err_printf("%d,%s,%s,%s\n", ret, argv[2], argv[3], argv[4]);
       if (ret < 0) return -1;
       // out_clear();
-      out_printf("SaveBlock: %d,%s,%s,%s,%d\n", ret, argv[2], argv[3], argv[4], time(NULL));
+      out_printf("SaveBlock: %d,%s,%s,%s,%d\n", ret, argv[2], argv[3], argv[4],
+                 time(NULL));
 
-    } else if(!strcmp(argv[1], "remove_block")) {
+    } else if (!strcmp(argv[1], "save_blocks")) {
+      /**
+       * Argc num = X
+       * argv[2]: ipfs pubkey
+       * argv[3]: numbers
+       * argv[n]: merkle root
+       * argv[n+1]: CID
+       * argv[n+2]: proof CID
+       * argv[n+3]: tfileCID
+       * argv[n+4]: challenge CID
+       * argv[n+5]: TagCID
+       * argv[n+6]: time
+       *
+       * Argc num = 6
+       * argv[2]: merkle root
+       * argv[3]: CID
+       * argv[4]: ipfs pubkey
+       * argv[5]: time
+       */
+      int n_ipfs_index = findIPFSnode(argv[2]);
+      err_printf("index:%d\n", n_ipfs_index);
+      for (int i = 4; i + 6 < argc; i += 7) {
+        err_printf("SaveBlocks: %s,%s,%s,%s,%s,%s,%s", argv[i], argv[i + 1],
+                   argv[i + 2], argv[i + 3], argv[i + 4], argv[i + 5],
+                   argv[i + 6]);
+        int ret = saveBlockByDefault(argv[i], argv[i + 1], n_ipfs_index,
+                                     argv[i + 2], atoi(argv[i + 6]),
+                                     argv[i + 4], argv[i + 3], argv[i + 5]);
+        err_printf("ret: %d\n", ret);
+        if (ret < 0) {
+          // out_clear();
+        out_printf("SaveBlocks: %d,%s,%s,%s,%d\n", ret, argv[2], argv[3],
+                   argv[4], time(NULL));
+        }
+        
+      }
+
+
+    } else if (!strcmp(argv[1], "dynamic_save_blocks")) {
+      /**
+       * Argc num = X
+       * argv[2]: ipfs pubkey
+       * argv[3]: numbers
+       * argv[n]: merkle root
+       * argv[n+1]: CID
+       * argv[n+2]: time
+       */
+      int n_ipfs_index = findIPFSnode(argv[2]);
+      err_printf("index:%d\n", n_ipfs_index);
+      for (int i = 4; i + 2 < argc; i += 3) {
+        err_printf("DynamicSaveBlocks: %s,%s,%s,%s,%s,%s,%s", argv[i], argv[i + 1],
+                   argv[i + 2]);
+        int ret = saveBlockByDynamic(argv[i], argv[i + 1], n_ipfs_index, atoi(argv[i + 2]));
+        err_printf("ret: %d\n", ret);
+        if (ret < 0) 
+        {
+          // out_clear();
+        out_printf("DynamicSaveBlocks: %s,%s,%s,%s,%s,%s,%s", argv[i], argv[i + 1],
+                   argv[i + 2]);
+        }
+        
+      }
+    } else if (!strcmp(argv[1], "remove_block")) {
       /**
        * @brief remove_block is to remove saving file annoucement
        * argv[2]: merkle_root
@@ -1549,11 +1612,11 @@ int contract_main(int argc, char** argv) {
        */
       int n_ipfs_index = findIPFSnode(argv[3]);
       err_printf("Remove index:%d\n", n_ipfs_index);
-      if(n_ipfs_index < 0) return -1;
+      if (n_ipfs_index < 0) return -1;
       int ret = removeBlockSaver(argv[2], n_ipfs_index);
       err_printf("Remove: %d,%s,%s\n", ret, argv[2], argv[3]);
-      out_printf("Remove: %d,%s,%s,%d\n", ret, argv[2], argv[3],time(NULL));
-      return ret;
+      out_printf("Remove: %d,%s,%s,%d\n", ret, argv[2], argv[3], time(NULL));
+      if(ret < 0) return -1;
     } else if (!strcmp(argv[1], "printAllBlocks")) {
       printAllBlock();
     } else {

@@ -79,6 +79,7 @@ class IpfsContract : Contract{
     IPFSNode* aIpfsNode;
     ContractState theContractState;
     Block* aBlocks;
+    int nInit = 0;
 
     IpfsContract(Contract contract) : Contract(contract){
       init();
