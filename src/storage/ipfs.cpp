@@ -68,13 +68,13 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
 {
     // LogPrintf("Process Storage Reqeust Msg, size: %d\n",msgs.size());
     // LogPrintf("The smart contract key store is : %s\n",RegisterKey);
-
+if(RegisterKey.empty()) return;
     CWallet* const pwallet = getWallet();
     CTxDestination dest = getDest(pwallet);
     // EnsureWalletIsUnlocked(pwallet);
     if (pwallet->IsLocked()) return;
 
-
+    
     LogPrintf("CID: %s,TagCID: %s,ChallengeCID: %s\n", msg.CID, msg.TagCID, msg.firstChallengeCID);
     if (vStoredBlock.find(msg.hash) != vStoredBlock.end()) return;
     vReadySolvingMsg.push_back(msg);
