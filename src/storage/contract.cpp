@@ -178,6 +178,8 @@ void CBlockContractManager::hotColdClassifier(CBlock* block)
 void CBlockContractManager::GetBackFromIPFS(CBlock& block, FlatFilePos pos)
 {
     if (vColdBlock.find(pos.hash) != vColdBlock.end()) {
+
+        LogPrintf("Get block from ipfs: CID: %s\n",vColdBlock.find(pos.hash)->second.CID);
         GetBlockFromIPFS(block, vColdBlock.find(pos.hash)->second.CID);
     }
 }

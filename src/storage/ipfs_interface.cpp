@@ -137,6 +137,7 @@ void GetBlockFromIPFS(CBlock& block, string str)
     request.set_request_uri(request_uri);
     pplx::task<http_response> responses = client.request(request);
     pplx::task<string> responseStr = responses.get().extract_string();
+    // LogPrintf("Response json:%s\n",responseStr.get());
     cout << "Response json:\n" << responseStr.get() << endl;
 
     //---- unserialize json string to the original CBlock data structure ---- Hank 20190902
