@@ -221,7 +221,7 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
         }
     }
 
-    // LogPrintf("vDeployList size: %d\n", vDeployList.size());
+    LogPrintf("vDeployList size: %d\n", vDeployList.size());
     for (auto& Itemcontract : vStorageContract) {
         // LogPrintf("vipfsnode: %d\n", Itemcontract.second.vIPFSNode.size());
         if (Itemcontract.second.vIPFSNode.size() != 0) {
