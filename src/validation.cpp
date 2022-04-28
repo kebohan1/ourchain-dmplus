@@ -1447,8 +1447,9 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
         fileout << block;
         cmanager.workingSet(block.GetHash(), pos);
         fileout.fclose();
+        fclose(blockfile);
     }
-    CAutoFile filein(blockfile, SER_DISK, CLIENT_VERSION);
+    CAutoFile filein(OpenNewBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
     try {
         CMessageHeader::MessageStartChars blk_start;
         unsigned int blk_size;
