@@ -1520,9 +1520,11 @@ int contract_main(int argc, char** argv) {
         int ret = saveProof(argv[i], argv[i + 1], argv[i + 2], &aIpfsNode[n_ipfs_index],
                             atoi(argv[i + 3]));
         err_printf("Proofs:%d,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1], argv[i + 2], argv[i + 3]);
-        if (ret < 0) return -1;
+        if (ret > 0){
+          out_printf("Proofs:%d,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1], argv[i + 2], argv[i + 3]);
+          
+        }
         // out_clear();
-        out_printf("Proofs:%d,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1], argv[i + 2], argv[i + 3]);
       }
 
     } else if (!strcmp(argv[1], "save_block")) {
@@ -1591,7 +1593,7 @@ int contract_main(int argc, char** argv) {
                                      argv[i + 2], atoi(argv[i + 6]),
                                      argv[i + 4], argv[i + 3], argv[i + 5]);
         err_printf("ret: %d\n", ret);
-        if (ret < 0) {
+        if (ret > 0) {
           // out_clear();
           out_printf("SaveBlocks: %d,%s,%s,%s,%d\n", ret, argv[2], argv[3],
                      argv[4], time(NULL));
