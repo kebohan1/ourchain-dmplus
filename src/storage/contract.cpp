@@ -32,6 +32,16 @@ using std::chrono::system_clock;
 #define CHALLENGE_TIME 300
 #define CHALLENGE_BLOCKS 10
 
+void removeBlock(std::string hash)
+{
+    fs::path blockPath = GetBlocksDir() / strprintf("blk_%s.dat", hash);
+
+    if (fs::exists(blockPath)) {
+        LogPrintf("RM block %s\n", hash);
+        fs::remove(blockPath);
+    }
+}
+
 std::vector<CBlockEach> CBlockContractManager::pushColdPool()
 {
     std::vector<CBlockEach> vDeployList;
@@ -281,15 +291,7 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
     // }
 }
 
-void removeBlock(std::string hash)
-{
-    fs::path blockPath = GetBlocksDir() / strprintf("blk_%s.dat", hash);
 
-    if (fs::exists(blockPath)) {
-        LogPrintf("RM block %s\n", hash);
-        fs::remove(blockPath);
-    }
-}
 
 void CBlockContractManager::receiveContract(IpfsContract contract)
 {
