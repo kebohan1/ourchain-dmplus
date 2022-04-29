@@ -1433,6 +1433,8 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
     if (fileheader.IsNull()) {
         return error("%s: OpenBlockFile failed for %s", __func__, pos.ToString());
     }
+    auto readTimeStart = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    csvStream << readTimeStart << "," << pos.hash.ToString() << ",0\n";
     FILE* blockfile = OpenNewBlockFile(pos, true);
     if (blockfile == nullptr) {
         CBlockContractManager cmanager{};
@@ -1460,7 +1462,12 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
 
 
         CAutoFile fileout(OpenNewBlockFile(pos), SER_DISK, CLIENT_VERSION);
-        fileout << block;
+        try{
+            fileout << block;
+        } catch(const std::exception& e) {
+            return error("%s: Fail to write IPFS block to disk: %s ", __func__, e.what());
+        }
+        
         
         cmanager.workingSet(block.GetHash(), pos);
         auto readTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
