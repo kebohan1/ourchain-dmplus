@@ -71,6 +71,10 @@ using namespace web;                  // Common features like URIs.
 using namespace web::http;            // Common HTTP functionality
 using namespace web::http::client;    // HTTP client features
 using namespace concurrency::streams; // Asynchronous streams
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::seconds;
+using std::chrono::system_clock;
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
@@ -1283,7 +1287,8 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     std::fstream csvStream;
     fs::path csvPath = GetDataDir() / "heightRef.csv";
     csvStream.open(csvPath.string(), ios::app);
-    csvStream << time(NULL) << "," << chain.Height() << std::endl;
+    auto heightTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    csvStream << heightTime << "," << chain.Height() << std::endl;
     // if(fs::exists(imanagerPath)){
     //   IpfsStorageManager imanager;
     //   //TODO: Dynamic choosing storing blocks
@@ -1329,11 +1334,12 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     // FILE* f = fsbridge::fopen(newBlockPath, "rb");
     // fseek(f, pos.nPos, SEEK_SET);
     FILE* blockfile = OpenNewBlockFile(pos, true);
-    
+
     std::fstream csvStream;
     fs::path csvPath = GetDataDir() / "read.csv";
     csvStream.open(csvPath.string(), ios::app);
-    csvStream << time(NULL) << "," << pos.hash.ToString() << ",0\n";
+    auto readStartTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    csvStream << readStartTime << "," << pos.hash.ToString() << ",0\n";
 
     CBlockContractManager cmanager{};
     fs::path managerpath = GetCPORDir() / "cmanager.dat";
@@ -1360,15 +1366,17 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
         } catch (const std::exception& e) {
             return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.hash.ToString());
         }
-        cmanager.workingSet(block.GetHash(),pos);
-        csvStream << time(NULL) << "," << pos.hash.ToString() << ",1A\n";
+        cmanager.workingSet(block.GetHash(), pos);
+        auto readTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        csvStream << readTime << "," << pos.hash.ToString() << ",1A\n";
         if (block.IsNull())
             return error("Faile to read block from disk");
     } else {
         cmanager.GetBackFromIPFS(block, pos);
         if (block.IsNull())
             return error("Faile to read block from IPFS");
-        csvStream << time(NULL) << "," << pos.hash.ToString() << ",1B\n";
+        auto readTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        csvStream << readTime << "," << pos.hash.ToString() << ",1B\n";
 
         CAutoFile fileout(OpenNewBlockFile(pos), SER_DISK, CLIENT_VERSION);
         fileout << block;
@@ -1418,6 +1426,10 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
     fs::path newBlockPath = GetBlocksDir() / strprintf("blk_head_%s.dat", pos.hash.ToString());
     FILE* f = fsbridge::fopen(newBlockPath, "rb");
     CAutoFile fileheader(f, SER_DISK, CLIENT_VERSION);
+    std::vector<CBlockEach> vDeployList;
+    fs::path csvPath = GetDataDir() / "read.csv";
+    std::fstream csvStream;
+    csvStream.open(csvPath.string(), ios::app);
     if (fileheader.IsNull()) {
         return error("%s: OpenBlockFile failed for %s", __func__, pos.ToString());
     }
@@ -1425,30 +1437,41 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
     if (blockfile == nullptr) {
         CBlockContractManager cmanager{};
         CBlock block;
-        fs::path managerpath = GetCPORDir() / "cmanager.dat";
-        CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
-        if (!cmanager.isInit()) {
-            if (cfilemanager.IsNull()) {
-                // LogPrintf("cmanager.dat not found... create 1\n");
-                cmanager.InitParams();
-                cmanager.InitKey();
-                cmanager.setInit();
-            } else {
-                LogPrintf("cmanager.dat serializing\n");
-                cfilemanager >> cmanager;
+        {
+            LOCK(cs_main);
+            fs::path managerpath = GetCPORDir() / "cmanager.dat";
+            CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
+            if (!cmanager.isInit()) {
+                if (cfilemanager.IsNull()) {
+                    // LogPrintf("cmanager.dat not found... create 1\n");
+                    cmanager.InitParams();
+                    cmanager.InitKey();
+                    cmanager.setInit();
+                } else {
+                    LogPrintf("cmanager.dat serializing\n");
+                    cfilemanager >> cmanager;
+                }
             }
         }
+
         cmanager.GetBackFromIPFS(block, pos);
         if (block.IsNull())
             return error("Faile to read block from IPFS");
 
-        
+
         CAutoFile fileout(OpenNewBlockFile(pos), SER_DISK, CLIENT_VERSION);
         fileout << block;
+        
         cmanager.workingSet(block.GetHash(), pos);
+        auto readTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        csvStream << readTime << "," << block.GetHash().ToString() << ",1C\n";
         fileout.fclose();
         fclose(blockfile);
+    } else {
+        auto readTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        csvStream << readTime << "," << pos.hash.ToString() << ",1A\n";
     }
+    csvStream.close();
     CAutoFile filein(OpenNewBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
     try {
         CMessageHeader::MessageStartChars blk_start;
@@ -2985,7 +3008,7 @@ bool CChainState::ActivateBestChainStep(CValidationState& state, const CChainPar
 
         // Connect new blocks.
         for (CBlockIndex* pindexConnect : reverse_iterate(vpindexToConnect)) {
-          // LogPrintf("Connect block\n");
+            // LogPrintf("Connect block\n");
             if (!ConnectTip(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace, disconnectpool)) {
                 // LogPrintf("")
                 if (state.IsInvalid()) {

@@ -21,6 +21,11 @@
 #include <storage/ipfs_interface.h>
 
 using namespace std;
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::seconds;
+using std::chrono::system_clock;
+
 
 #define COLDPOOL_MAX 30
 #define WORKINGSET_SIZE 100
@@ -41,7 +46,9 @@ std::vector<CBlockEach> CBlockContractManager::pushColdPool()
     int i = 0;
     for (auto& item : vColdPool) {
         if(i > WORKINGSET_SIZE) break;
-        csvStream << time(NULL) << "," << item.first.ToString() << ",0\n";
+        auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+
+        csvStream << newTime << "," << item.first.ToString() << ",0\n";
         CBlock block;
         {
             LOCK(cs_main);
@@ -73,7 +80,8 @@ std::vector<CBlockEach> CBlockContractManager::pushColdPool()
         fs::path TFile = path / "Tfiles" / item.first.ToString().append(".t");
         if (!fs::exists(TagFile)) {
             local_cpor_tag_file(str, item.first, pkey);
-            csvStream << time(NULL) << "," << item.first.ToString() << ",1\n";
+            auto tagtime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+            csvStream << tagtime << "," << item.first.ToString() << ",1\n";
         }
         // LogPrintf("%s starts\n", item.first.ToString());
 
@@ -216,6 +224,7 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
         for (iter = vDeployList.begin(); iter != vDeployList.end(); iter++) {
             if (vColdBlock.find(iter->hash) != vColdBlock.end()) {
                 // LogPrintf("exist: %s, %s\n", vColdBlock.find(iter->hash)->second.hash.ToString(), iter->hash.ToString());
+                removeBlock(iter->hash.ToString());
                 vDeployList.erase(iter); // erase if exist in vcoldblock
             }
         }
@@ -245,7 +254,8 @@ bool CBlockContractManager::deployContract(std::vector<CBlockEach>& vDeployList)
                     message.firstChallengeCID = list.firstChallengeCID;
                     message.tFileCID = list.tfileCID;
                     g_connman->ForNodeMsg(nodeid, message);
-                    csvStream << time(NULL) << "," << list.hash.ToString() << ",2\n";
+                     auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+                    csvStream << newTime << "," << list.hash.ToString() << ",2\n";
                     flag = true;
                 }
             }
@@ -362,7 +372,8 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                     // std::cout << "Proof failed!" <<std::endl;
                     iter->second.nReputation--;
                 }
-                csvStream << time(NULL) << "," << blockIter->second.hash.ToString() << ",3\n";
+                auto saveTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+                csvStream << saveTime << "," << blockIter->second.hash.ToString() << ",3\n";
             } else {
                 LogPrintf("Core dump prevent 2\n");
                 CBlockEach newBlock;
@@ -401,7 +412,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
 
             for (int i = 3; i + 6 < contract.getArgs().size(); i += 7) {
                 if (vColdBlock.find(uint256S(contract.getArgs()[i].c_str())) != vColdBlock.end()) {
-                    LogPrintf("Core dump prevent 1\n");
+                    LogPrintf("Save blocks handle:%s\n",contract.getArgs()[i].c_str());
                     std::map<uint256, CBlockEach>::iterator blockIter = vColdBlock.find(uint256S(contract.getArgs()[i].c_str()));
                     ;
 
@@ -444,7 +455,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                     }
 
 
-                    // LogPrintf("cpor_verify result: %d\n", ret);
+                    LogPrintf("cpor_verify result: %d\n", ret);
                     if (ret == 1) {
                         // std::cout << "Proof success!" <<std::endl;
                         iter->second.nReputation++;
@@ -453,7 +464,8 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                         // std::cout << "Proof failed!" <<std::endl;
                         iter->second.nReputation--;
                     }
-                    csvStream << time(NULL) << "," << blockIter->second.hash.ToString() << ",3\n";
+                    auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+                    csvStream << newTime << "," << blockIter->second.hash.ToString() << ",3\n";
                 }
             }
 
@@ -480,7 +492,8 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                  * calculated. So user have to cat both of them to calculate and compare.
                  *
                  */
-
+                auto proofTimeStart = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+                csvStream << proofTimeStart << "," << coldblock.hash.ToString() << ",1";
                 ret = cpor_verify_file(coldblock.hash.ToString(),
                     UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[4]))),
                     UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[3]))),
@@ -495,7 +508,8 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                     // std::cout << "Proof failed!" <<std::endl;
                     iter->second.nReputation--;
                 }
-                csvStream << time(NULL) << "," << coldblock.hash.ToString() << ",1";
+                auto proofTimeEnd = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+                csvStream << proofTimeEnd << "," << coldblock.hash.ToString() << ",2";
             }
         }
     } else {
