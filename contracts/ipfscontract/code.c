@@ -1505,6 +1505,26 @@ int contract_main(int argc, char** argv) {
       // out_clear();
       out_printf("Proof: %d,%s,%s,%s\n", ret, argv[2], argv[3], argv[6]);
 
+    } else if (!strcmp(argv[1], "proof_blocks")) {
+      /*
+       * argv[2]: ipfs pubkey
+       * argv[n]: merkle root
+       * argv[n + 1]: proof CID
+       * argv[n + 2]: challenge CID
+       * argv[n + 3]: time
+       */
+      int n_ipfs_index = findIPFSnode(argv[2]);
+      err_printf("index:%d\n", n_ipfs_index);
+      if (n_ipfs_index < 0) return -1;
+      for (int i = 3; i + 3 < argc; i += 4) {
+        int ret = saveProof(argv[i], argv[i + 1], argv[i + 2], &aIpfsNode[n_ipfs_index],
+                            atoi(argv[i + 3]));
+        err_printf("Proofs:%d,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1], argv[i + 2], argv[i + 3]);
+        if (ret < 0) return -1;
+        // out_clear();
+        out_printf("Proofs:%d,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1], argv[i + 2], argv[i + 3]);
+      }
+
     } else if (!strcmp(argv[1], "save_block")) {
       /**
        * Argc num = 10
@@ -1573,12 +1593,10 @@ int contract_main(int argc, char** argv) {
         err_printf("ret: %d\n", ret);
         if (ret < 0) {
           // out_clear();
-        out_printf("SaveBlocks: %d,%s,%s,%s,%d\n", ret, argv[2], argv[3],
-                   argv[4], time(NULL));
+          out_printf("SaveBlocks: %d,%s,%s,%s,%d\n", ret, argv[2], argv[3],
+                     argv[4], time(NULL));
         }
-        
       }
-
 
     } else if (!strcmp(argv[1], "dynamic_save_blocks")) {
       /**
@@ -1592,17 +1610,16 @@ int contract_main(int argc, char** argv) {
       int n_ipfs_index = findIPFSnode(argv[2]);
       err_printf("index:%d\n", n_ipfs_index);
       for (int i = 4; i + 2 < argc; i += 3) {
-        err_printf("DynamicSaveBlocks: %s,%s,%s,%s,%s,%s,%s", argv[i], argv[i + 1],
-                   argv[i + 2]);
-        int ret = saveBlockByDynamic(argv[i], argv[i + 1], n_ipfs_index, atoi(argv[i + 2]));
+        err_printf("DynamicSaveBlocks: %s,%s,%s,%s,%s,%s,%s", argv[i],
+                   argv[i + 1], argv[i + 2]);
+        int ret = saveBlockByDynamic(argv[i], argv[i + 1], n_ipfs_index,
+                                     atoi(argv[i + 2]));
         err_printf("ret: %d\n", ret);
-        if (ret < 0) 
-        {
+        if (ret < 0) {
           // out_clear();
-        out_printf("DynamicSaveBlocks: %s,%s,%s,%s,%s,%s,%s", argv[i], argv[i + 1],
-                   argv[i + 2]);
+          out_printf("DynamicSaveBlocks: %s,%s,%s,%s,%s,%s,%s", argv[i],
+                     argv[i + 1], argv[i + 2]);
         }
-        
       }
     } else if (!strcmp(argv[1], "remove_block")) {
       /**
@@ -1616,7 +1633,7 @@ int contract_main(int argc, char** argv) {
       int ret = removeBlockSaver(argv[2], n_ipfs_index);
       err_printf("Remove: %d,%s,%s\n", ret, argv[2], argv[3]);
       out_printf("Remove: %d,%s,%s,%d\n", ret, argv[2], argv[3], time(NULL));
-      if(ret < 0) return -1;
+      if (ret < 0) return -1;
     } else if (!strcmp(argv[1], "printAllBlocks")) {
       printAllBlock();
     } else {

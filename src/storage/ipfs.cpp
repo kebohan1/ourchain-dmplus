@@ -68,13 +68,13 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
 {
     // LogPrintf("Process Storage Reqeust Msg, size: %d\n",msgs.size());
     // LogPrintf("The smart contract key store is : %s\n",RegisterKey);
-if(RegisterKey.empty()) return;
+    if (RegisterKey.empty()) return;
     CWallet* const pwallet = getWallet();
     CTxDestination dest = getDest(pwallet);
     // EnsureWalletIsUnlocked(pwallet);
     if (pwallet->IsLocked()) return;
 
-    
+
     LogPrintf("CID: %s,TagCID: %s,ChallengeCID: %s\n", msg.CID, msg.TagCID, msg.firstChallengeCID);
     if (vStoredBlock.find(msg.hash) != vStoredBlock.end()) return;
     vReadySolvingMsg.push_back(msg);
@@ -142,7 +142,15 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
     CWallet* const pwallet = getWallet();
     CTxDestination dest = getDest(pwallet);
     EnsureWalletIsUnlocked(pwallet);
+
     LogPrintf("Recieve Challenge\n");
+    Contract contract;
+
+    contract.action = contract_action::ACTION_CALL;
+    contract.usage = contract_usage::USAGE_USER;
+    contract.address = contractHash;
+    contract.args.push_back("proof_blocks");
+    contract.args.push_back(RegisterKey); // pubkey
 
     for (auto& item : msg.vChallenge) {
         std::string block = GetFromIPFS(vStoredBlock.find(item.first)->second.CID);
@@ -152,33 +160,27 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
 
         std::string proofCID = AddToIPFS(HexStr(SerializeProof(cpor_prove_file(block, StrHex(tag), pchallenge))));
         LogPrintf("Challenge prove created\n");
-        Contract contract;
 
-        contract.action = contract_action::ACTION_CALL;
-        contract.usage = contract_usage::USAGE_USER;
-        contract.address = contractHash;
         // LogPrintf("IPFS signup output: %s\n",contractHash.ToString());
         /*
-         * argv[2]: merkle root
-         * argv[3]: ipfs pubkey
-         * argv[4]: proof CID
-         * argv[5]: challenge CID
-         * argv[6]: time
+         * argv[n]: merkle root
+         * argv[n + 1]: proof CID
+         * argv[n + 2]: challenge CID
+         * argv[n + 3]: time
          */
-        contract.args.push_back("proof_block");
+
         contract.args.push_back(item.first.ToString());
-        contract.args.push_back(RegisterKey); // pubkey
-        contract.args.push_back(proofCID);    // proofCID
+        contract.args.push_back(proofCID); // proofCID
         contract.args.push_back(item.second);
         contract.args.push_back(std::to_string(time(NULL))); // time
 
-        CTransactionRef tx;
-        CCoinControl no_coin_control;
-        SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
 
         destroy_cpor_challenge(pchallenge);
         // destroy_cpor_proof(pproof);
     }
+    CTransactionRef tx;
+    CCoinControl no_coin_control;
+    SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
 }
 
 void IpfsStorageManager::init()
@@ -236,7 +238,7 @@ void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
         contract.address = contractHash;
         contract.args.push_back("dynamic_save_blocks");
         std::vector<std::string> args;
-        
+
         for (int i = 0; i < ipfsCon.theContractState.num_blocks; ++i) {
             if (vStoredBlock.find(uint256S(ipfsCon.aBlocks[i].merkleRoot)) == vStoredBlock.end() && saveBlocks < ipfsCon.theContractState.num_blocks / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
                 PinIPFS(ipfsCon.aBlocks[i].CIDHash);
@@ -250,21 +252,21 @@ void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
                  * argv[4]: ipfs pubkey
                  * argv[5]: time
                  */
-                
+
                 args.push_back(ipfsCon.aBlocks[i].merkleRoot);
                 args.push_back(ipfsCon.aBlocks[i].CIDHash);
-                               // pubkey
+                // pubkey
                 args.push_back(std::to_string(time(NULL))); // time
 
-                
+
                 saveBlocks++;
             }
         }
-        
-        
-        contract.args.push_back(RegisterKey); 
+
+
+        contract.args.push_back(RegisterKey);
         contract.args.push_back(std::to_string(args.size()));
-        contract.args.insert(contract.args.end(),args.begin(),args.end());
+        contract.args.insert(contract.args.end(), args.begin(), args.end());
         CTransactionRef tx;
         CCoinControl no_coin_control;
         SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
