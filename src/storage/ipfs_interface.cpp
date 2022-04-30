@@ -104,8 +104,10 @@ string AddToIPFS(string str)
 {
     std::string ipfsIP = gArgs.GetArg("-ipfsip","127.0.0.1:5001");
     std::string uri;
-    uri = "https://" + ipfsIP +"/api/v0/add";
-    http_client client(U(uri));
+    uri = "http://" + ipfsIP +"/api/v0/add";
+    LogPrintf("uri:%s\n",uri);
+
+    http_client client(U(uri.c_str()));
     http_request request(methods::POST);
 
     string textBoundary = "--FORMBOUNDARY--";
@@ -137,8 +139,10 @@ void GetBlockFromIPFS(CBlock& block, string str)
     std::string ipfsIP = gArgs.GetArg("-ipfsip","127.0.0.1:5001");
     std::string uri;
     string request_uri = "/api/v0/cat?arg=" + str;
-    uri = "https://" + ipfsIP +"/api/v0/add";
-    http_client client(U(uri));
+    uri = "http://" + ipfsIP ;
+    
+    LogPrintf("uri:%s\n",uri);
+    http_client client(U(uri.c_str()));
     http_request request(methods::POST);
     // request.set_request_uri("/api/v0/object/get?arg=QmaaqrHyAQm7gALkRW8DcfGX3u8q9rWKnxEMmf7m9z515w&encoding=json");
     request.set_request_uri(request_uri);
@@ -201,8 +205,10 @@ std::string GetFromIPFS(std::string hash){
   string request_uri = "/api/v0/cat?arg=" + hash;
   std::string ipfsIP = gArgs.GetArg("-ipfsip","127.0.0.1:5001");
     std::string uri;
-  uri = "https://" + ipfsIP +"/api/v0/add";
-    http_client client(U(uri));
+  uri = "http://" + ipfsIP;
+    LogPrintf("uri:%s\n",uri);
+
+    http_client client(U(uri.c_str()));
     http_request request(methods::POST);
     // request.set_request_uri("/api/v0/object/get?arg=QmaaqrHyAQm7gALkRW8DcfGX3u8q9rWKnxEMmf7m9z515w&encoding=json");
     request.set_request_uri(request_uri);
@@ -216,8 +222,8 @@ void PinIPFS(string str) {
   // ---- change api from /object/get to /cat ---- Hank 20190902
     string request_uri = "/api/v0/pin/add?arg=" + str +"&encoding=json";
     std::string ipfsIP = gArgs.GetArg("-ipfsip","127.0.0.1:5001");
-    std::string uri = "https://" + ipfsIP +"/api/v0/add";
-    http_client client(U(uri));
+    std::string uri = "http://" + ipfsIP;
+    http_client client(U(uri.c_str()));
     http_request request(methods::POST);
     // request.set_request_uri("/api/v0/object/get?arg=QmaaqrHyAQm7gALkRW8DcfGX3u8q9rWKnxEMmf7m9z515w&encoding=json");
     request.set_request_uri(request_uri);
