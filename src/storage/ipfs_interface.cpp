@@ -105,7 +105,6 @@ string AddToIPFS(string str)
     std::string ipfsIP = gArgs.GetArg("-ipfsip","127.0.0.1:5001");
     std::string uri;
     uri = "http://" + ipfsIP +"/api/v0/add";
-    LogPrintf("uri:%s\n",uri);
 
     http_client client(U(uri.c_str()));
     http_request request(methods::POST);
@@ -140,8 +139,7 @@ void GetBlockFromIPFS(CBlock& block, string str)
     std::string uri;
     string request_uri = "/api/v0/cat?arg=" + str;
     uri = "http://" + ipfsIP ;
-    
-    LogPrintf("uri:%s\n",uri);
+
     http_client client(U(uri.c_str()));
     http_request request(methods::POST);
     // request.set_request_uri("/api/v0/object/get?arg=QmaaqrHyAQm7gALkRW8DcfGX3u8q9rWKnxEMmf7m9z515w&encoding=json");
@@ -206,7 +204,6 @@ std::string GetFromIPFS(std::string hash){
   std::string ipfsIP = gArgs.GetArg("-ipfsip","127.0.0.1:5001");
     std::string uri;
   uri = "http://" + ipfsIP;
-    LogPrintf("uri:%s\n",uri);
 
     http_client client(U(uri.c_str()));
     http_request request(methods::POST);
