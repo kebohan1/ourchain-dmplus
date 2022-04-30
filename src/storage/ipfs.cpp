@@ -217,6 +217,8 @@ void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
     contract.address = contractHash;
     LogPrintf("DynamicStoreBlocks\n");
     fs::path csvPath = GetDataDir() / "dynamic.csv";
+    fs::path stateFile = GetDataDir() / "contracts" / contractHash.ToString() / "state";
+    if(!fs::exists(stateFile)) return;
     IpfsContract ipfsCon(contract);
     if (ipfsCon.nInit == 0) return;
     std::fstream csvStream;
