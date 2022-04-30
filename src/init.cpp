@@ -549,6 +549,8 @@ void SetupServerArgs()
     gArgs.AddArg("-rpcworkqueue=<n>", strprintf("Set the depth of the work queue to service RPC calls (default: %d)", DEFAULT_HTTP_WORKQUEUE), true, OptionsCategory::RPC);
     gArgs.AddArg("-server", "Accept command line and JSON-RPC commands", false, OptionsCategory::RPC);
 
+    //This is used for ipfs select ip
+    gArgs.AddArg("-ipfsip=<addr>","used for ipfs connect",false,OptionsCategory::IPFS);
 #if HAVE_DECL_DAEMON
     gArgs.AddArg("-daemon", "Run in the background as a daemon and accept commands", false, OptionsCategory::OPTIONS);
 #else

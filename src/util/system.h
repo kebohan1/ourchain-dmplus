@@ -126,6 +126,7 @@ enum class OptionsCategory {
     GUI,
     COMMANDS,
     REGISTER_COMMANDS,
+    IPFS,
 
     HIDDEN // Always the last option to avoid printing these in the help
 };

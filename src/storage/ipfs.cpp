@@ -11,6 +11,7 @@
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 #include <wallet/walletutil.h>
+#define COLDPOOL_MAX 30
 
 static CWallet* getWallet()
 {

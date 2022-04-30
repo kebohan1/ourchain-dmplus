@@ -1334,7 +1334,7 @@ static int saveBlockByDefault(char* merkle_root, char* CID, int index_Ipfsnode,
                      &nowBlock->allocated_array_proof_size,
                      &nowBlock->num_proof);
 
-  free(proofBlock);
+  // free(proofBlock);
   if (blockIndex == -1) {
     appendToBlockArray(*nowBlock);
     // TODO: 0419blockIndex do not append

@@ -102,4 +102,5 @@ class IpfsContract : Contract{
 
     std::vector<uint256> getSavedBlock(std::string pubkey);
     int findUser(std::string pubkey);
+    Block findBlock(std::string);
 };

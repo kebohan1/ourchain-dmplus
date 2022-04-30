@@ -1,4 +1,5 @@
 #include <storage/ipfs_interface.h>
+#include <util/system.h>
 
 void CppRestProccessVoutToJson(CTxOut tx_Out, int counter, json::value& Vout)
 {
@@ -101,7 +102,10 @@ void CppRestConstructBlockToJson(CBlock block, json::value& root)
 
 string AddToIPFS(string str)
 {
-    http_client client(U("http://127.0.0.1:5001/api/v0/add"));
+    std::string ipfsIP = gArgs.GetArg("-ipfsip","127.0.0.1:5001");
+    std::string uri;
+    uri = "https://" + ipfsIP +"/api/v0/add";
+    http_client client(U(uri));
     http_request request(methods::POST);
 
     string textBoundary = "--FORMBOUNDARY--";
@@ -130,8 +134,11 @@ string AddToIPFS(string str)
 void GetBlockFromIPFS(CBlock& block, string str)
 {
     // ---- change api from /object/get to /cat ---- Hank 20190902
+    std::string ipfsIP = gArgs.GetArg("-ipfsip","127.0.0.1:5001");
+    std::string uri;
     string request_uri = "/api/v0/cat?arg=" + str;
-    http_client client(U("http://127.0.0.1:5001"));
+    uri = "https://" + ipfsIP +"/api/v0/add";
+    http_client client(U(uri));
     http_request request(methods::POST);
     // request.set_request_uri("/api/v0/object/get?arg=QmaaqrHyAQm7gALkRW8DcfGX3u8q9rWKnxEMmf7m9z515w&encoding=json");
     request.set_request_uri(request_uri);
@@ -192,7 +199,10 @@ void GetBlockFromIPFS(CBlock& block, string str)
 
 std::string GetFromIPFS(std::string hash){
   string request_uri = "/api/v0/cat?arg=" + hash;
-  http_client client(U("http://127.0.0.1:5001"));
+  std::string ipfsIP = gArgs.GetArg("-ipfsip","127.0.0.1:5001");
+    std::string uri;
+  uri = "https://" + ipfsIP +"/api/v0/add";
+    http_client client(U(uri));
     http_request request(methods::POST);
     // request.set_request_uri("/api/v0/object/get?arg=QmaaqrHyAQm7gALkRW8DcfGX3u8q9rWKnxEMmf7m9z515w&encoding=json");
     request.set_request_uri(request_uri);
@@ -205,7 +215,9 @@ std::string GetFromIPFS(std::string hash){
 void PinIPFS(string str) {
   // ---- change api from /object/get to /cat ---- Hank 20190902
     string request_uri = "/api/v0/pin/add?arg=" + str +"&encoding=json";
-    http_client client(U("http://127.0.0.1:5001"));
+    std::string ipfsIP = gArgs.GetArg("-ipfsip","127.0.0.1:5001");
+    std::string uri = "https://" + ipfsIP +"/api/v0/add";
+    http_client client(U(uri));
     http_request request(methods::POST);
     // request.set_request_uri("/api/v0/object/get?arg=QmaaqrHyAQm7gALkRW8DcfGX3u8q9rWKnxEMmf7m9z515w&encoding=json");
     request.set_request_uri(request_uri);

@@ -440,6 +440,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                             t->k_prf,
                             t->alpha);
                         if (ret) {
+                            LogPrintf("The Tfile is not match... update\n");
                             fs::path tfilepath = GetDataDir() / "cpor" / "Tfiles" / contract.getAddress().ToString().append(".t");
                             if (fs::exists(tfilepath)) fs::remove(tfilepath);
                             FILE* tfile = fsbridge::fopen(tfilepath, "w");
@@ -474,6 +475,8 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
 
             csvStream.close();
         }
+
+        
 
 
         if (contract.getArgs()[0] == "proof_block") {
@@ -644,6 +647,7 @@ void CBlockContractManager::challengeBlock(int nHeight)
     if (nHeight > n_last_challenge_height + CHALLENGE_TIME) {
         srand(time(NULL));
         std::cout << "Challenge..." << std::endl;
+        //TODO: check TFILECID vs blockCID
         fs::path csvPath = GetDataDir() / "challenge.csv";
         std::fstream csvStream;
         csvStream.open(csvPath.string(), ios::app);
@@ -667,7 +671,16 @@ void CBlockContractManager::challengeBlock(int nHeight)
                     int rand_times = blocks.size() > CHALLENGE_BLOCKS ? CHALLENGE_BLOCKS : blocks.size();
                     for (int i = 0; i < rand_times; ++i) {
                         int rand_num = rand() % blocks.size();
-                        CPOR_challenge* pchallenge = cpor_challenge_file(blocks[rand_num].ToString(), pkey);
+                        Block block = ipfscontract.findBlock(blocks[rand_num].ToString());
+                        CPOR_challenge* pchallenge;
+                        if(block.tfileCID != vColdBlock.find(blocks[rand_num])->second.tfileCID){
+                            CPOR_t* t = UnserializeT(StrHex(GetFromIPFS(block.tfileCID)));
+                            pchallenge = cpor_create_challenge(pkey->global, t->n);
+
+                        } else {
+                            pchallenge = cpor_challenge_file(blocks[rand_num].ToString(), pkey);
+                        }
+                        
                         if (!pchallenge) continue;
                         std::vector<unsigned char> challenge = SerializeChallenge(pchallenge);
 

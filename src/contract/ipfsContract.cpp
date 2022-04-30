@@ -137,3 +137,10 @@ std::vector<uint256> IpfsContract::getSavedBlock(std::string pubkey) {
   }
   return vStoredBlock;
 }
+Block IpfsContract::findBlock(std::string hash){
+  for(int i = 0; i < theContractState.num_blocks; ++i){
+    if(!strcmp(aBlocks[i].merkleRoot, hash.c_str())){
+      return aBlocks[i];
+    }
+  }
+}
