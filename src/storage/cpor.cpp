@@ -1086,7 +1086,7 @@ CPOR_challenge* UnserializeChallenge(std::vector<unsigned char> from) {
 
   CPOR_challenge* newChallenge = allocate_cpor_challenge(l);
 	newChallenge->l = l;
-	std::cout << "l:" << newChallenge->l <<std::endl;
+	// std::cout << "l:" << newChallenge->l <<std::endl;
 
 	for(int i = 0; i < newChallenge->l; ++i) {
 		memcpy(&I, pfrom + offset, sizeof(unsigned int));
@@ -1115,7 +1115,7 @@ CPOR_challenge* UnserializeChallenge(std::vector<unsigned char> from) {
 		BN_bin2bn(nu_char, bigNumSize, newChallenge->nu[i]);
     offset += bigNumSize;
   }
-	std::cout << "Unserialize Challenge cmp" <<std::endl;
+	// std::cout << "Unserialize Challenge cmp" <<std::endl;
   return newChallenge;
   
 }

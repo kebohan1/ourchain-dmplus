@@ -77,17 +77,41 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
 
 
     LogPrintf("CID: %s,TagCID: %s,ChallengeCID: %s\n", msg.CID, msg.TagCID, msg.firstChallengeCID);
-    if (vStoredBlock.find(msg.hash) != vStoredBlock.end()) return;
-    vReadySolvingMsg.push_back(msg);
-    if (vReadySolvingMsg.size() < 29) return;
+    // if (vStoredBlock.find(msg.hash) != vStoredBlock.end()) return;
     Contract contract;
+    contract.address = contractHash;
+    fs::path contractState = GetDataDir() / "contracts" / msg.hash.ToString() / "state";
+    Block* oldBlock;
+    if(fs::exists(contractState)){
+        IpfsContract oldContract{contract};
+        oldBlock = oldContract.findBlock(msg.hash.ToString());
+        if(oldBlock != nullptr){
+            LogPrintf("Find block in state\n");
+            // free(oldBlock); 
+            return;
+        }
+    }
+    
+    vReadySolvingMsg.push_back(msg);
+    int nColdPoolMax = gArgs.GetArg("-coldpool",29);
+    if (vReadySolvingMsg.size() < nColdPoolMax) return;
+    
+    
     contract.args.push_back("save_blocks");
     contract.args.push_back(RegisterKey); // pubkey
     contract.args.push_back(to_string(vReadySolvingMsg.size()));
     contract.action = contract_action::ACTION_CALL;
     contract.usage = contract_usage::USAGE_USER;
-    contract.address = contractHash;
+    
+    int savingNum = 0;
     for (auto readymsg : vReadySolvingMsg) {
+        IpfsContract oldContract{contract};
+        oldBlock = oldContract.findBlock(readymsg.hash.ToString());
+        if(oldBlock != nullptr){
+            LogPrintf("Find block in state\n");
+            // free(oldBlock); 
+            continue;
+        } 
         PinIPFS(readymsg.CID);
         PinIPFS(readymsg.TagCID);
         std::string block = GetFromIPFS(readymsg.CID);
@@ -126,7 +150,8 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
         cblock.CID = readymsg.CID;
         cblock.hash = readymsg.hash;
         cblock.TagCID = readymsg.TagCID;
-        vStoredBlock.insert(std::pair<uint256, IpfsStoredBlock>(readymsg.hash, cblock));
+        // vStoredBlock.insert(std::pair<uint256, IpfsStoredBlock>(readymsg.hash, cblock));
+        ++savingNum;
     }
 
     CTransactionRef tx;
@@ -135,7 +160,7 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
     vReadySolvingMsg.clear();
 
     LogPrintf("Process Cmp\n");
-    DynamicStoreBlocks(1);
+    DynamicStoreBlocks(savingNum);
 }
 
 void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
@@ -152,13 +177,17 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
     contract.address = contractHash;
     contract.args.push_back("proof_blocks");
     contract.args.push_back(RegisterKey); // pubkey
-
+    IpfsContract oldContract{contract};
+    LogPrintf("Msg size: %d\n",msg.vChallenge.size());
     for (auto& item : msg.vChallenge) {
-        std::string block = GetFromIPFS(vStoredBlock.find(item.first)->second.CID);
+        LogPrintf("block hash: %s\n",item.first.ToString());
+        Block* oldBlock = oldContract.findBlock(item.first.ToString());
+        if(oldBlock == nullptr) continue;
+        std::string block = GetFromIPFS(oldBlock->CIDHash);
         std::string challenge = GetFromIPFS(item.second);
-        std::string tag = GetFromIPFS(vStoredBlock.find(item.first)->second.TagCID);
+        std::string tag = GetFromIPFS(oldBlock->tagCID);
         CPOR_challenge* pchallenge = UnserializeChallenge(StrHex(challenge));
-
+        LogPrintf("Challenge recieve\n");
         std::string proofCID = AddToIPFS(HexStr(SerializeProof(cpor_prove_file(block, StrHex(tag), pchallenge))));
         LogPrintf("Challenge prove created\n");
 

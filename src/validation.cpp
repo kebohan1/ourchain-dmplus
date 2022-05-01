@@ -1420,6 +1420,7 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 
 bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, const CMessageHeader::MessageStartChars& message_start)
 {
+    LOCK(cs_main);
     FlatFilePos hpos = pos;
     // LogPrintf("ReadRawBlock\n");
     // hpos.nPos -= 8; // Seek back 8 bytes for meta header
@@ -1439,8 +1440,8 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
     if (blockfile == nullptr) {
         CBlockContractManager cmanager{};
         CBlock block;
-        {
-            LOCK(cs_main);
+        
+            
             fs::path managerpath = GetCPORDir() / "cmanager.dat";
             CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
             if (!cmanager.isInit()) {
@@ -1454,7 +1455,7 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
                     cfilemanager >> cmanager;
                 }
             }
-        }
+        
 
         cmanager.GetBackFromIPFS(block, pos);
         if (block.IsNull())
@@ -1470,10 +1471,12 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
         
         
         cmanager.workingSet(block.GetHash(), pos);
+        CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath, "wb"), SER_DISK, CLIENT_VERSION);
+        int nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
+        cfilemanagerOut << cmanager << nSize;
         auto readTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
         csvStream << readTime << "," << block.GetHash().ToString() << ",1C\n";
         fileout.fclose();
-        fclose(blockfile);
     } else {
         auto readTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
         csvStream << readTime << "," << pos.hash.ToString() << ",1A\n";

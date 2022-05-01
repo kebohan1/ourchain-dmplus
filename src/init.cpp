@@ -551,6 +551,10 @@ void SetupServerArgs()
 
     //This is used for ipfs select ip
     gArgs.AddArg("-ipfsip=<addr>","used for ipfs connect",false,OptionsCategory::IPFS);
+    gArgs.AddArg("-coldpool=<n>","Cold pool size",false,OptionsCategory::STORAGE);
+    gArgs.AddArg("-workingset=<n>","Workingset size",false,OptionsCategory::STORAGE);
+    gArgs.AddArg("-challengetimes=<n>","Challenge interval",false,OptionsCategory::STORAGE);
+    gArgs.AddArg("-challengeblocks=<n>","Challenge blocks",false,OptionsCategory::STORAGE);
 #if HAVE_DECL_DAEMON
     gArgs.AddArg("-daemon", "Run in the background as a daemon and accept commands", false, OptionsCategory::OPTIONS);
 #else

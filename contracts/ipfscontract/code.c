@@ -1355,9 +1355,12 @@ static int saveProof(char* merkle_root, char* proofCID, char* challengeCID,
   strcpy(cProofBlock->cCIDHash, proofCID);
   cProofBlock->time = time;
 
-  cblock->array_proof_block[cblock->num_proof] = *cProofBlock;
-  free(cblock);
-  free(cProofBlock);
+  // cblock->array_proof_block[cblock->num_proof] = *cProofBlock;
+  appendToProofArray(cblock->array_proof_block, *cProofBlock,
+                     &cblock->allocated_array_proof_size,
+                     &cblock->num_proof);
+  // free(cblock);
+  // free(cProofBlock);
   return 1;
 }
 
