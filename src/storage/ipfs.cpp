@@ -11,6 +11,7 @@
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 #include <wallet/walletutil.h>
+#include <consensus/validation.h>
 #define COLDPOOL_MAX 30
 
 static CWallet* getWallet()
@@ -64,6 +65,37 @@ static CTxDestination getDest(CWallet* const pwallet)
 
     return dest;
 }
+
+static bool SendTx(CWallet * const pwallet, const Contract *contract, const CTxDestination &address, CTransactionRef& wtxNew, const CCoinControl& coin_control, string& strError)
+ {
+    //  CAmount curBalance = pwallet->GetBalance();
+    auto locked_chain = pwallet->chain().lock();
+     if (pwallet->GetBroadcastTransactions() && !pwallet->chain().p2pEnabled())
+        strError = "Error: Peer-to-peer functionality missing or disabled";
+        return false;
+
+     // Parse Bitcoin address
+     CScript scriptPubKey = GetScriptForDestination(address);
+
+     // Create and send the transaction
+     CReserveKey reservekey(pwallet);
+     CAmount nFeeRequired;
+     std::vector<CRecipient> vecSend;
+     int nChangePosRet = -1;
+    //  CRecipient recipient = {scriptPubKey, curBalance, true};
+    CRecipient recipient = {scriptPubKey, 0, false};
+     vecSend.push_back(recipient);
+     if (!pwallet->CreateTransaction(*locked_chain,vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, coin_control, true, contract, true)) {
+        return false;
+     }
+     CValidationState state;
+     mapValue_t mapValue;
+    if (!pwallet->CommitTransaction(wtxNew, std::move(mapValue), {} /* orderForm */, reservekey, state)) {
+    //  if (!pwallet->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+         strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+        return false;
+     }
+ }
 
 void IpfsStorageManager::receiveMessage(CStorageMessage msg)
 {
@@ -156,7 +188,9 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
 
     CTransactionRef tx;
     CCoinControl no_coin_control;
-    SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
+    std::string error;
+    bool ret = SendTx(pwallet, &contract, dest, tx, no_coin_control,error);
+    if(!ret) LogPrintf("Error: ipfs/recieveMessage: %s\n",error);
     vReadySolvingMsg.clear();
 
     LogPrintf("Process Cmp\n");

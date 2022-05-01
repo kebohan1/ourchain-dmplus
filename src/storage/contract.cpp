@@ -221,6 +221,7 @@ static void getNodeStat(std::map<std::string, NodeId>& nodes)
     std::vector<CNodeStats> nodeStats;
     g_connman->GetNodeStats(nodeStats);
     for (auto& node : nodeStats) {
+      LogPrintf("nodeipport: %s\n",node.addr.ToStringIPPort());
         nodes.insert(std::pair<std::string, NodeId>(node.addr.ToStringIPPort(), node.nodeid));
     }
 }
@@ -250,7 +251,7 @@ bool CBlockContractManager::deployContract(std::vector<CStorageMessage>& vDeploy
                 // CNode newNode()
                 // std::cout << "discontruct ipfsnode vector" << std::endl;
                 CAddress addrConnect;
-
+                LogPrintf("ip: %s\n",node.second.ip);
                 if (nodes.find(node.second.ip) == nodes.end()) {
                     g_connman->AddNode(node.second.ip);
                     getNodeStat(nodes);
