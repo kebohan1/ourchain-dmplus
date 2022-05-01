@@ -61,7 +61,7 @@ class CBlockEach {
     std::string tfileCID;
     int nHeight;
     CBlockEach(){};
-    CBlockEach(std::string CID, uint256 contract_hash) : CID(CID){};
+    CBlockEach(std::string CID) : CID(CID){};
     void Challenge();
 
     ADD_SERIALIZE_METHODS;

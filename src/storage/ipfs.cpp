@@ -186,11 +186,11 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
         ++savingNum;
     }
 
+    LogPrintf("argc: %d\n",contract.args.size());
     CTransactionRef tx;
     CCoinControl no_coin_control;
     std::string error;
-    bool ret = SendTx(pwallet, &contract, dest, tx, no_coin_control,error);
-    if(!ret) LogPrintf("Error: ipfs/recieveMessage: %s\n",error);
+    SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
     vReadySolvingMsg.clear();
 
     LogPrintf("Process Cmp\n");

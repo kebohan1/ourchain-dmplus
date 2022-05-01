@@ -265,7 +265,7 @@ bool CBlockContractManager::deployContract(std::vector<CStorageMessage>& vDeploy
                     blockEach.CID = list.CID;
                     blockEach.tfileCID = list.tFileCID;
                     blockEach.hash = list.hash;
-                    if(vColdBlock.find(blockEach.hash)!=vColdBlock.end())
+                    if(vColdBlock.find(blockEach.hash)==vColdBlock.end())
                     {
                         vColdBlock.insert(std::pair<uint256, CBlockEach>(blockEach.hash,blockEach));
                     }
