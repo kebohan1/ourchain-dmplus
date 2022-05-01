@@ -8,6 +8,7 @@
 #include <contract/ipfsContract.h>
 #include <flatfile.h>
 #include <storage/cpor.h>
+#include <storage/net_process.h>
 
 
 class CIPFSNode {
@@ -56,15 +57,11 @@ class CBlockEach {
     
   public :
     std::string CID;
-    std::string TagCID;
-    uint256 contract_hash;
     uint256 hash;
-    std::vector<CIPFSNode> vSavers;
-    std::string firstChallengeCID;
     std::string tfileCID;
     int nHeight;
     CBlockEach(){};
-    CBlockEach(std::string CID, uint256 contract_hash) : CID(CID), contract_hash(contract_hash){};
+    CBlockEach(std::string CID, uint256 contract_hash) : CID(CID){};
     void Challenge();
 
     ADD_SERIALIZE_METHODS;
@@ -72,11 +69,9 @@ class CBlockEach {
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(CID);
-        READWRITE(TagCID);
+        READWRITE(tfileCID);
         READWRITE(nHeight);
-        READWRITE(contract_hash);
         READWRITE(hash);
-        READWRITE(vSavers);
     }
 
 };
@@ -85,8 +80,8 @@ class CBlockEach {
 class CBlockContractManager {
 
   protected:
-    std::vector<std::pair<uint256, FlatFilePos>> vColdPool;
-    std::vector<std::pair<uint256, FlatFilePos>> vWorkingSet;
+    std::vector<FlatFilePos> vColdPool;
+    std::vector<FlatFilePos> vWorkingSet;
     std::map<uint256,CBlockEach> vColdBlock;
     std::map<uint256,StorageContract> vStorageContract;
     int n_max_cold_pool = 0;
@@ -103,8 +98,8 @@ class CBlockContractManager {
     //  InitKey();
     //   LogPrintf("init cmp\n"); 
     };
-    void appendColdPool(std::pair<uint256, FlatFilePos> pair);
-    bool deployContract(std::vector<CBlockEach> &);
+    void appendColdPool(FlatFilePos pair);
+    bool deployContract(std::vector<CStorageMessage> &);
     void receiveContract(IpfsContract);
     CBlock* retrieveBlock(uint256);
     
@@ -143,7 +138,7 @@ class CBlockContractManager {
     int ReadKey();
 
     void workingSet(uint256 hash,FlatFilePos);
-    std::vector<CBlockEach> pushColdPool();
+    std::vector<CStorageMessage> pushColdPool();
     void automaticColdPool();
     void hotColdClassifier(CBlock* block);
     bool lookupColdPool(FlatFilePos pos);
