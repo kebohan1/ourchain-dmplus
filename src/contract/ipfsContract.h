@@ -47,14 +47,14 @@ struct ProofBlock {
 
 struct Block {
   int nBlockSavers;
-  char CIDHash[50];
-  char merkleRoot[129]; // the length of merkle root is 256 bit
-  char tfileCID[50];
-  char tagCID[50];
   int allocated_blockSavers_size;
-  int* blockSavers;
   int allocated_array_proof_size;
   int num_proof;
+  char CIDHash[50];
+  char merkleRoot[65];  // the length of merkle root is 256 bit
+  char tfileCID[50];
+  char tagCID[50];
+  int* blockSavers;
   ProofBlock* array_proof_block;
 } ;
 
@@ -86,10 +86,10 @@ class IpfsContract : Contract{
     }
 
     ~IpfsContract(){
-      // freeAccountArray();
-      // freeAllowanceArray();
-      // freeBlocksArray();
-      // freeIpfsNodeArray();
+      freeAccountArray();
+      freeAllowanceArray();
+      freeBlocksArray();
+      freeIpfsNodeArray();
     }
 
     void init();
