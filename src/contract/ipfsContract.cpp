@@ -146,3 +146,31 @@ Block* IpfsContract::findBlock(std::string hash){
   }
   return nullptr;
 }
+
+/**
+ * @brief To free the memory, following function are used to free
+ * 
+ */
+
+void IpfsContract::freeAccountArray(){
+  free(globalAccountArray);
+}
+
+void IpfsContract::freeAllowanceArray(){
+  for (int i = 0; i < theContractState.allocated_allowance_array_size; i++) {
+    free(globalAllowanceArray[i].records);
+  }
+  free(globalAllowanceArray);
+}
+
+void IpfsContract::freeBlocksArray(){
+  for (int i = 0; i < theContractState.allocated_blocks_array_size; i++) {
+    free(aBlocks[i].blockSavers);
+    free(aBlocks[i].array_proof_block);
+  }
+  free(aBlocks);
+}
+
+void IpfsContract::freeIpfsNodeArray(){
+  free(aIpfsNode);
+}

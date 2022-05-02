@@ -85,6 +85,13 @@ class IpfsContract : Contract{
       init();
     }
 
+    ~IpfsContract(){
+      freeAccountArray();
+      freeAllowanceArray();
+      freeBlocksArray();
+      freeIpfsNodeArray();
+    }
+
     void init();
     uint256 getAddress(){
       return address;
@@ -99,6 +106,11 @@ class IpfsContract : Contract{
     unsigned int readAllowanceArray(unsigned char* buffer, unsigned int offset);
     unsigned int readBlocksArray(unsigned char* buffer, unsigned int offset);
     unsigned int readIpfsNodeArray(unsigned char* buffer, unsigned int offset);
+
+    void freeAccountArray();
+    void freeAllowanceArray();
+    void freeBlocksArray();
+    void freeIpfsNodeArray();
 
     std::vector<uint256> getSavedBlock(std::string pubkey);
     int findUser(std::string pubkey);

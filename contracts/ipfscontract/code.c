@@ -78,14 +78,14 @@ typedef struct proofBlock {
 
 typedef struct block {
   int nBlockSavers;
-  char CIDHash[50];
-  char merkleRoot[129];  // the length of merkle root is 256 bit
-  char tfileCID[50];
-  char tagCID[50];
   int allocated_blockSavers_size;
-  int* blockSavers;
   int allocated_array_proof_size;
   int num_proof;
+  char CIDHash[50];
+  char merkleRoot[65];  // the length of merkle root is 256 bit
+  char tfileCID[50];
+  char tagCID[50];
+  int* blockSavers;
   ProofBlock* array_proof_block;
 } Block;
 
@@ -535,6 +535,7 @@ static unsigned int writeState() {
              theContractState.size_contract);
   assert(offset == sizeof(int) + sizeof(char) * theContractState.size_contract);
   state_write(buff, offset);
+  free(buff);
   return offset;
 }
 
@@ -554,6 +555,7 @@ static unsigned int writeAccountArrayToState(unsigned char* buffer,
                                              unsigned int offset) {
   memcpy(buffer + offset, globalAccountArray,
          sizeof(Account) * theContractState.allocated_account_array_size);
+  free(globalAccountArray);
   return sizeof(Account) * theContractState.allocated_account_array_size;
 }
 
@@ -571,7 +573,9 @@ static unsigned int writeAllowanceArrayToState(unsigned char* buffer,
       written_bytes += sizeof(AllowanceRecord) *
                        globalAllowanceArray[i].allocated_array_size;
     }
+    free(globalAllowanceArray[i].records);
   }
+  free(globalAllowanceArray);
 
   return written_bytes;
 }
@@ -591,7 +595,11 @@ static unsigned int writeBlocksArray(unsigned char* buffer,
       written_bytes +=
           sizeof(ProofBlock) * aBlocks[i].allocated_array_proof_size;
     }
+    free(aBlocks[i].blockSavers);
+    free(aBlocks[i].array_proof_block);
   }
+  free(aBlocks);
+
 
   return written_bytes;
 }
@@ -599,6 +607,7 @@ static unsigned int writeIpfsNodeArray(unsigned char* buffer,
                                        unsigned int offset) {
   memcpy(buffer + offset, aIpfsNode,
          sizeof(IPFSNode) * theContractState.allocated_ipfsnode_array_size);
+  free(aIpfsNode);
   return sizeof(IPFSNode) * theContractState.allocated_ipfsnode_array_size;
 }
 
@@ -953,6 +962,10 @@ char* HTTPrequest(char* path, int n_path) {
 
   // 釋放緩衝區記憶體
   free(buffer);
+  free(requestLine);
+
+  free(CRLF);
+  free(headerFmt);
   buffer = NULL;
 
   // 以 memset 清空 hints 結構
@@ -966,7 +979,8 @@ char* HTTPrequest(char* path, int n_path) {
   // 以從中取得 Host 的 IP 位址
   if ((gaiStatus = getaddrinfo(host, PORT_NUM, &hints, &result)) != 0)
     return NULL;
-
+  free(host);
+  free(PORT_NUM);
   // 分別以 domain, type, protocol 建立 socket 檔案描述符
   cfd = socket(result->ai_family, result->ai_socktype, 0);
 
@@ -1006,11 +1020,13 @@ char* HTTPrequest(char* path, int n_path) {
     }
     token = strtok(NULL, split);
   }
+  free(token);
 
   printf("source: %s\n", res);
   // 半雙工關閉 TCP Socket 連線
   // (i.e., 關閉寫入)
   shutdown(cfd, SHUT_WR);
+
 
   return res;
 

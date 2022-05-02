@@ -238,7 +238,7 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
         contract.args.push_back(item.second);
         contract.args.push_back(std::to_string(time(NULL))); // time
 
-
+        delete(oldBlock);
         destroy_cpor_challenge(pchallenge);
         // destroy_cpor_proof(pproof);
     }
