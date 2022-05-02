@@ -535,7 +535,9 @@ static unsigned int writeState() {
              theContractState.size_contract);
   assert(offset == sizeof(int) + sizeof(char) * theContractState.size_contract);
   state_write(buff, offset);
-  free(buff);
+  // free(globalAccountArray);
+  // free(aIpfsNode);
+  // free(buff);
   return offset;
 }
 
@@ -555,7 +557,7 @@ static unsigned int writeAccountArrayToState(unsigned char* buffer,
                                              unsigned int offset) {
   memcpy(buffer + offset, globalAccountArray,
          sizeof(Account) * theContractState.allocated_account_array_size);
-  free(globalAccountArray);
+  
   return sizeof(Account) * theContractState.allocated_account_array_size;
 }
 
@@ -573,9 +575,9 @@ static unsigned int writeAllowanceArrayToState(unsigned char* buffer,
       written_bytes += sizeof(AllowanceRecord) *
                        globalAllowanceArray[i].allocated_array_size;
     }
-    free(globalAllowanceArray[i].records);
+    // free(globalAllowanceArray[i].records);
   }
-  free(globalAllowanceArray);
+  // free(globalAllowanceArray);
 
   return written_bytes;
 }
@@ -595,10 +597,10 @@ static unsigned int writeBlocksArray(unsigned char* buffer,
       written_bytes +=
           sizeof(ProofBlock) * aBlocks[i].allocated_array_proof_size;
     }
-    free(aBlocks[i].blockSavers);
-    free(aBlocks[i].array_proof_block);
+    // free(aBlocks[i].blockSavers);
+    // free(aBlocks[i].array_proof_block);
   }
-  free(aBlocks);
+  // free(aBlocks);
 
 
   return written_bytes;
@@ -607,7 +609,7 @@ static unsigned int writeIpfsNodeArray(unsigned char* buffer,
                                        unsigned int offset) {
   memcpy(buffer + offset, aIpfsNode,
          sizeof(IPFSNode) * theContractState.allocated_ipfsnode_array_size);
-  free(aIpfsNode);
+  
   return sizeof(IPFSNode) * theContractState.allocated_ipfsnode_array_size;
 }
 

@@ -165,7 +165,7 @@ void IpfsContract::freeAllowanceArray(){
 
 void IpfsContract::freeBlocksArray(){
   for (int i = 0; i < theContractState.allocated_blocks_array_size; i++) {
-    free(aBlocks[i].blockSavers);
+    // free(aBlocks[i].blockSavers);
     free(aBlocks[i].array_proof_block);
   }
   free(aBlocks);

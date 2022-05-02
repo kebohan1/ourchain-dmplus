@@ -181,7 +181,7 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
         //  CWalletTx wtx;
 
         // std::cout << "Send Contract cmp:" << tx->GetHash().GetHex() << std::endl;
-        // free(pproof);
+        free(pproof);
         free(pchallenge);
         IpfsStoredBlock cblock;
         cblock.CID = readymsg.CID;

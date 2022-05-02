@@ -86,10 +86,10 @@ class IpfsContract : Contract{
     }
 
     ~IpfsContract(){
-      freeAccountArray();
-      freeAllowanceArray();
-      freeBlocksArray();
-      freeIpfsNodeArray();
+      // freeAccountArray();
+      // freeAllowanceArray();
+      // freeBlocksArray();
+      // freeIpfsNodeArray();
     }
 
     void init();

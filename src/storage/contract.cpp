@@ -107,8 +107,9 @@ std::vector<CStorageMessage> CBlockContractManager::pushColdPool()
 
         std::vector<unsigned char> t_bin = readFileToUnsignedChar(TFile.string());
         // mTagFile.insert(pair<uint256, FILE*>(item.GetHash(),fsbridge::fopen(path,"r")));
-
-        std::vector<unsigned char> challenge = SerializeChallenge(cpor_challenge_file(item.hash.ToString(), pkey));
+        CPOR_challenge* pchallenge =  cpor_challenge_file(item.hash.ToString(), pkey);
+        std::vector<unsigned char> challenge = SerializeChallenge(pchallenge);
+        destroy_cpor_challenge(pchallenge);
         // std::cout <<"Challenge" << HexStr(challenge) <<std::endl;
         // Push To IPFS & get CID back
         CStorageMessage message;
@@ -412,7 +413,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
 
             for (int i = 3; i + 6 < contract.getArgs().size(); i += 7) {
                 if (vColdBlock.find(uint256S(contract.getArgs()[i].c_str())) != vColdBlock.end()) {
-                    LogPrintf("Save blocks handle:%s\n", contract.getArgs()[i].c_str());
+                    // LogPrintf("Save blocks handle:%s\n", contract.getArgs()[i].c_str());
                     std::map<uint256, CBlockEach>::iterator blockIter = vColdBlock.find(uint256S(contract.getArgs()[i].c_str()));
                     ;
 
@@ -438,7 +439,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                             t->k_prf,
                             t->alpha);
                         if (ret) {
-                            LogPrintf("The Tfile is not match... update\n");
+                            // LogPrintf("The Tfile is not match... update\n");
                             fs::path tfilepath = GetDataDir() / "cpor" / "Tfiles" / contract.getAddress().ToString().append(".t");
                             if (fs::exists(tfilepath)) fs::remove(tfilepath);
                             FILE* tfile = fsbridge::fopen(tfilepath, "w");
@@ -448,6 +449,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                         }
                         destroy_cpor_challenge(challenge);
                         destroy_cpor_proof(proof);
+                        destroy_cpor_t(t);
                     } else {
                         ret = cpor_verify_file(blockIter->second.hash.ToString(),
                             UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[i + 4]))),
@@ -456,7 +458,7 @@ void CBlockContractManager::receiveContract(IpfsContract contract)
                     }
 
 
-                    LogPrintf("cpor_verify result: %d\n", ret);
+                    // LogPrintf("cpor_verify result: %d\n", ret);
                     if (ret == 1) {
                         // std::cout << "Proof success!" <<std::endl;
                         iter->second.nReputation++;
@@ -677,7 +679,7 @@ void CBlockContractManager::challengeBlock(int nHeight)
                         // if(block.tfileCID != vColdBlock.find(blocks[rand_num])->second.tfileCID){
                         CPOR_t* t = UnserializeT(StrHex(GetFromIPFS(block->tfileCID)));
                         pchallenge = cpor_create_challenge(pkey->global, t->n);
-
+                        destroy_cpor_t(t);
                         // } else {
                         //     pchallenge = cpor_challenge_file(blocks[rand_num].ToString(), pkey);
                         // }
