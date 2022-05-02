@@ -14,6 +14,11 @@
 #include <consensus/validation.h>
 #define COLDPOOL_MAX 30
 
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::seconds;
+using std::chrono::system_clock;
+
 static CWallet* getWallet()
 {
     std::vector<std::shared_ptr<CWallet>> wallets = GetWallets();
@@ -280,6 +285,7 @@ void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
     contract.address = contractHash;
     LogPrintf("DynamicStoreBlocks\n");
     fs::path csvPath = GetDataDir() / "dynamic.csv";
+    auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     fs::path stateFile = GetDataDir() / "contracts" / contractHash.ToString() / "state";
     if(!fs::exists(stateFile)) return;
     IpfsContract ipfsCon(contract);
@@ -288,7 +294,7 @@ void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
     if (ipfsCon.findUser(RegisterKey) == -1) return;
     csvStream.open(csvPath.string(), ios::app);
     int recvContractNum = ipfsCon.getSavedBlock(RegisterKey).size() + already_stored_num;
-    csvStream << recvContractNum << std::endl;
+    csvStream << newTime << "," << recvContractNum << std::endl;
     if (recvContractNum < (ipfsCon.theContractState.num_blocks + already_stored_num) / ipfsCon.theContractState.num_ipfsnode * ipfsCon.theContractState.num_replication) {
         std::sort(ipfsCon.aBlocks,
             ipfsCon.aBlocks + ipfsCon.theContractState.num_blocks,
