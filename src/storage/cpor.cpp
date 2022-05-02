@@ -1286,7 +1286,7 @@ std::vector<unsigned char> SerializeProof(CPOR_proof* proof) {
     memcpy(result + offset, mu_char,nSize);
     offset += nSize;
   }
-	destroy_cpor_proof(proof);
+	// destroy_cpor_proof(proof);
   return std::vector<unsigned char>(result ,result + size);
   
 }
