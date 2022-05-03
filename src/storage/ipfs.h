@@ -50,7 +50,7 @@ class IpfsStorageManager {
       vReadySolvingMsg.clear();
       vStoredBlock.clear();
       contractHash.SetNull();
-      RegisterKey.~basic_string();
+      RegisterKey.clear();
     }
     void receiveMessage(CStorageMessage msgs);
     void receiveChallengeMessage(ChallengeMessage msgs);
