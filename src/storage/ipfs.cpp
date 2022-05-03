@@ -165,10 +165,10 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
     contract.args.push_back(to_string(vReadySolvingMsg.size()));
     contract.action = contract_action::ACTION_CALL;
     contract.usage = contract_usage::USAGE_USER;
-    
+    IpfsContract oldContract{contract};
     int savingNum = 0;
     for (auto readymsg : vReadySolvingMsg) {
-        IpfsContract oldContract{contract};
+        
         oldBlock = oldContract.findBlock(readymsg.hash.ToString());
         if(oldBlock != nullptr){
             LogPrintf("Find block in state\n");
