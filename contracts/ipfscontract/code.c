@@ -620,7 +620,7 @@ static unsigned int writeIpfsNodeArray(unsigned char* buffer,
                                        unsigned int offset) {
   memcpy(buffer + offset, aIpfsNode,
          sizeof(IPFSNode) * theContractState.allocated_ipfsnode_array_size);
-  free(aIpfsNode);
+
   return sizeof(IPFSNode) * theContractState.allocated_ipfsnode_array_size;
 }
 
