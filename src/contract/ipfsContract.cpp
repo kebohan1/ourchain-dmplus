@@ -153,34 +153,34 @@ Block* IpfsContract::findBlock(std::string hash){
  */
 
 void IpfsContract::freeAccountArray(){
-  LogPrintf("free globalAccountArray\n");
+  // LogPrintf("free globalAccountArray\n");
   if(globalAccountArray) free(globalAccountArray);
 }
 
 void IpfsContract::freeAllowanceArray(){
   
-LogPrintf("free globalAllowanceArray item\n");
+// LogPrintf("free globalAllowanceArray item\n");
   for (int i = 0; i < theContractState.num_allowance; i++) {
     
     if(globalAllowanceArray[i].records) free(globalAllowanceArray[i].records);
   }
-  LogPrintf("free globalAllowanceArray\n");
+  // LogPrintf("free globalAllowanceArray\n");
   if(globalAllowanceArray) free(globalAllowanceArray);
   
 }
 
 void IpfsContract::freeBlocksArray(){
-  LogPrintf("free blocks item\n");
+  // LogPrintf("free blocks item\n");
   for (int i = 0; i < theContractState.num_blocks; i++) {
     delete(aBlocks[i].blockSavers);
     if(aBlocks[i].array_proof_block) free(aBlocks[i].array_proof_block);
   }
-  LogPrintf("free blocks\n");
+  // LogPrintf("free blocks\n");
   if(aBlocks) free(aBlocks);
 }
 
 void IpfsContract::freeIpfsNodeArray(){
-  LogPrintf("free ipfs\n");
+  // LogPrintf("free ipfs\n");
 
   if(aIpfsNode) free(aIpfsNode);
 }

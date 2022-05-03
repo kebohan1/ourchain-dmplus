@@ -40,6 +40,18 @@ class IpfsStorageManager {
   std::string RegisterKey;
 
     IpfsStorageManager(){};
+
+    ~IpfsStorageManager(){
+      SetNull();
+    };
+
+    void SetNull(){
+      vStoredContract.clear();
+      vReadySolvingMsg.clear();
+      vStoredBlock.clear();
+      contractHash.SetNull();
+      RegisterKey.~basic_string();
+    }
     void receiveMessage(CStorageMessage msgs);
     void receiveChallengeMessage(ChallengeMessage msgs);
     void init();

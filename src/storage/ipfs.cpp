@@ -183,10 +183,10 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
         // std::cout << "Send Contract cmp:" << tx->GetHash().GetHex() << std::endl;
         free(pproof);
         free(pchallenge);
-        IpfsStoredBlock cblock;
-        cblock.CID = readymsg.CID;
-        cblock.hash = readymsg.hash;
-        cblock.TagCID = readymsg.TagCID;
+        // IpfsStoredBlock cblock;
+        // cblock.CID = readymsg.CID;
+        // cblock.hash = readymsg.hash;
+        // cblock.TagCID = readymsg.TagCID;
         // vStoredBlock.insert(std::pair<uint256, IpfsStoredBlock>(readymsg.hash, cblock));
         ++savingNum;
     }
@@ -227,7 +227,8 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
         std::string tag = GetFromIPFS(oldBlock->tagCID);
         CPOR_challenge* pchallenge = UnserializeChallenge(StrHex(challenge));
         LogPrintf("Challenge recieve\n");
-        std::string proofCID = AddToIPFS(HexStr(SerializeProof(cpor_prove_file(block, StrHex(tag), pchallenge))));
+        CPOR_proof* pproof = cpor_prove_file(block, StrHex(tag), pchallenge);
+        std::string proofCID = AddToIPFS(HexStr(SerializeProof(pproof)));
         LogPrintf("Challenge prove created\n");
 
         // LogPrintf("IPFS signup output: %s\n",contractHash.ToString());
@@ -245,7 +246,7 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
 
         // delete(oldBlock);
         destroy_cpor_challenge(pchallenge);
-        // destroy_cpor_proof(pproof);
+        destroy_cpor_proof(pproof);
     }
     CTransactionRef tx;
     CCoinControl no_coin_control;

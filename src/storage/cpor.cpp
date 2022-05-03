@@ -580,11 +580,11 @@ static CPOR_tag *read_str_cpor_tag(std::vector<unsigned char> tagfile, unsigned 
 	memset(sigma, 0, sigma_size);
   memcpy(sigma,cTagFile+offset, sigma_size);
   offset += sigma_size;
-
+	
 	// fread(sigma, sigma_size, 1, tagfile);
 	// if(ferror(tagfile)) goto cleanup;
 	if(!BN_bin2bn(sigma, sigma_size, tag->sigma)) return NULL;
-	
+
 	/* read index */
   memcpy(&(tag->index),cTagFile + offset, sizeof(unsigned int));
 	// fread(&(tag->index), sizeof(unsigned int), 1, tagfile);
@@ -1242,6 +1242,10 @@ CPOR_proof *cpor_prove_file(std::string strfile, std::vector<unsigned char> tagf
 	
 	// std::cout <<"success" <<std::endl;
 	proof = cpor_create_proof_final(proof);
+	delete(block);
+	delete(charFile);
+	// if(tag) destroy_cpor_tag(tag);
+
 	// destroy_cpor_challenge(challenge);
 	// if(file) fclose(file);
 	// if(tagfile) fclose(tagfile);

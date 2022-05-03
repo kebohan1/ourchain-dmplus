@@ -1202,6 +1202,12 @@ int validateProof(char* proofCID, char* challengeCID, Block* block) {
   destroy_cpor_challenge(challenge);
   destroy_cpor_proof(proof);
   destroy_cpor_t(t);
+  free(proof_ret);
+  free(challenge_ret);
+  free(tfile_ret);
+  free(proof_hex);
+  free(challenge_hex);
+  free(tfile_hex);
   err_printf("Validate Proof: %d\n", ret);
   return ret;
 }
@@ -1364,13 +1370,16 @@ static int saveBlockByDefault(char* merkle_root, char* CID, int index_Ipfsnode,
   appendToProofArray(nowBlock->array_proof_block, *proofBlock,
                      &nowBlock->allocated_array_proof_size,
                      &nowBlock->num_proof);
+  free(proofBlock);
 
   // free(proofBlock);
   if (blockIndex == -1) {
     appendToBlockArray(*nowBlock);
+    free(nowBlock);
     // TODO: 0419blockIndex do not append
     blockIndex = theContractState.num_blocks;
   }
+  
 
   return blockIndex;
 }
@@ -1391,7 +1400,7 @@ static int saveProof(char* merkle_root, char* proofCID, char* challengeCID,
                      &cblock->allocated_array_proof_size,
                      &cblock->num_proof);
   // free(cblock);
-  // free(cProofBlock);
+  free(cProofBlock);
   return 1;
 }
 
