@@ -1683,7 +1683,7 @@ CTransactionRef ProcessContractTx(const Contract& cont, CCoinsViewCache& inputs,
         mtx.vin.push_back(CTxIn(outpoint));
         balance += inputs.AccessCoin(outpoint).out.nValue;
     }
-
+    LogPrintf("Memory Usage:%d\n",pcoinsTip->DynamicMemoryUsage());
     if (!ProcessContract(cont, mtx.vout, cs.state, balance, nextContract)) return CTransactionRef();
     // update cont state
     cs.coins.clear();
@@ -2485,8 +2485,8 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     //      }
     //  }
 
-    // The function write revxxx.dat
-    std::cout << "At lest not die hear" << std::endl;
+    // // The function write revxxx.dat
+    // std::cout << "At lest not die hear" << std::endl;
     if (!WriteUndoDataForBlock(blockundo, state, pindex, chainparams))
         return false;
 

@@ -1,30 +1,30 @@
 #include "contract/processing.h"
 // #include "util.h"
-#include <logging.h>
+#include "amount.h"
+#include "base58.h"
 #include "primitives/transaction.h"
 #include "script/standard.h"
-#include "base58.h"
 #include "uint256.h"
-#include "amount.h"
+#include <logging.h>
 
-#include <string>
 #include <fstream>
+#include <string>
 #include <vector>
 
 #include <stdlib.h>
-#include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
-#include <util/system.h>
-#include <key_io.h>
 #include <iostream>
+#include <key_io.h>
+#include <util/system.h>
 
-#include <storage/contract.h>
+#include <clientversion.h>
 #include <core_io.h>
 #include <serialize.h>
+#include <storage/contract.h>
 #include <streams.h>
-#include <clientversion.h>
 
 #define BYTE_READ_STATE 0
 #define BYTE_SEND_TO_ADDRESS -1
@@ -33,9 +33,9 @@
 
 static fs::path contracts_dir;
 
-const static fs::path &GetContractsDir()
+const static fs::path& GetContractsDir()
 {
-    if(!contracts_dir.empty()) return contracts_dir;
+    if (!contracts_dir.empty()) return contracts_dir;
 
     contracts_dir = GetDataDir() / "contracts";
     fs::create_directories(contracts_dir);
@@ -43,33 +43,34 @@ const static fs::path &GetContractsDir()
     return contracts_dir;
 }
 
-static int call_mkdll(const uint256& contract, std::string flags){
+static int call_mkdll(const uint256& contract, std::string flags)
+{
     int pid, status;
 
     pid = fork();
     std::cout << "PID:" << pid << std::endl;
-    if(pid == 0) {
+    if (pid == 0) {
         int fd = open((GetContractsDir().string() + "/err").c_str(),
-                      O_WRONLY | O_APPEND | O_CREAT,
-                      0664);
+            O_WRONLY | O_APPEND | O_CREAT,
+            0664);
         dup2(fd, STDERR_FILENO);
         close(fd);
-        std::cout<<"fork 0 fd open done." << std::endl;
-        if(flags.empty()) {
+        std::cout << "fork 0 fd open done." << std::endl;
+        if (flags.empty()) {
             execlp("ourcontract-mkdll",
-               "ourcontract-mkdll",
-               GetContractsDir().string().c_str(),
-               contract.GetHex().c_str(),
-               NULL);
+                "ourcontract-mkdll",
+                GetContractsDir().string().c_str(),
+                contract.GetHex().c_str(),
+                NULL);
         } else {
             execlp("ourcontract-mkdll",
-               "ourcontract-mkdll",
-               GetContractsDir().string().c_str(),
-               contract.GetHex().c_str(),
-               flags.c_str(),
-               NULL);
+                "ourcontract-mkdll",
+                GetContractsDir().string().c_str(),
+                contract.GetHex().c_str(),
+                flags.c_str(),
+                NULL);
         }
-        
+
         exit(EXIT_FAILURE);
     }
 
@@ -79,8 +80,7 @@ static int call_mkdll(const uint256& contract, std::string flags){
     return 0;
 }
 
-static int call_rt(const uint256& contract, const std::vector<std::string> &args, std::vector<CTxOut> &vTxOut,
-                   std::vector<uchar> &state, std::vector<Contract> &nextContract)
+static int call_rt(const uint256& contract, const std::vector<std::string>& args, std::vector<CTxOut>& vTxOut, std::vector<uchar>& state, std::vector<Contract>& nextContract)
 {
     int pid, status;
     int fd_state_read[2], fd_state_write[2];
@@ -88,10 +88,10 @@ static int call_rt(const uint256& contract, const std::vector<std::string> &args
     if (pipe(fd_state_write) == -1) return -1;
 
     pid = fork();
-    if(pid == 0) {
+    if (pid == 0) {
         int fd_error = open((GetContractsDir().string() + "/err").c_str(),
-                      O_WRONLY | O_APPEND | O_CREAT,
-                      0664);
+            O_WRONLY | O_APPEND | O_CREAT,
+            0664);
         dup2(fd_error, STDERR_FILENO);
         close(fd_error);
 
@@ -102,13 +102,14 @@ static int call_rt(const uint256& contract, const std::vector<std::string> &args
         close(fd_state_read[1]);
         close(fd_state_write[0]);
         close(fd_state_write[1]);
-        const char **argv = (const char**)malloc((args.size() + 4) * sizeof(char*));
+        const char** argv = (const char**)malloc((args.size() + 4) * sizeof(char*));
         argv[0] = "ourcontract-rt";
         argv[1] = GetContractsDir().string().c_str();
-        std::cout << "Contract Path:" << argv[1] <<std::endl;
+        std::cout << "Contract Path:" << argv[1] << std::endl;
         std::string hex_ctid(contract.GetHex());
         argv[2] = hex_ctid.c_str();
-        for (unsigned i = 0; i < args.size(); i++) argv[i + 3] = args[i].c_str();
+        for (unsigned i = 0; i < args.size(); i++)
+            argv[i + 3] = args[i].c_str();
         argv[args.size() + 3] = NULL;
         execvp("ourcontract-rt", (char* const*)argv);
         exit(EXIT_FAILURE);
@@ -117,32 +118,32 @@ static int call_rt(const uint256& contract, const std::vector<std::string> &args
     close(fd_state_read[1]);
     close(fd_state_write[0]);
 
-    FILE *pipe_state_read = fdopen(fd_state_read[0], "rb");
-    FILE *pipe_state_write = fdopen(fd_state_write[1], "wb");
+    FILE* pipe_state_read = fdopen(fd_state_read[0], "rb");
+    FILE* pipe_state_write = fdopen(fd_state_write[1], "wb");
 
     int flag;
-    while (fread((void *) &flag, sizeof(int), 1, pipe_state_read) != 0) {
-        if (flag == BYTE_READ_STATE) {                // read state
-            fwrite((void *) &state[0], state.size(), 1, pipe_state_write);
-        } else if (flag > 0) {          // write state
+    while (fread((void*)&flag, sizeof(int), 1, pipe_state_read) != 0) {
+        if (flag == BYTE_READ_STATE) { // read state
+            fwrite((void*)&state[0], state.size(), 1, pipe_state_write);
+        } else if (flag > 0) { // write state
             state.resize(flag);
-            int ret = fread((void *) &state[0], state.size(), 1, pipe_state_read);
+            int ret = fread((void*)&state[0], state.size(), 1, pipe_state_read);
             assert(ret >= 0);
-        } else if (flag == BYTE_SEND_TO_ADDRESS) {        // send to address
-            std::string addr_to( 40, '\0' );
+        } else if (flag == BYTE_SEND_TO_ADDRESS) { // send to address
+            std::string addr_to(40, '\0');
             CAmount amount;
             int ret = fread(&addr_to[0], sizeof(char), (size_t)40, pipe_state_read);
             assert(ret >= 0);
-            ret = fread((void *) &amount, sizeof(long long), 1, pipe_state_read);
+            ret = fread((void*)&amount, sizeof(long long), 1, pipe_state_read);
             assert(ret >= 0);
-            CTxDestination address =DecodeDestination(addr_to);
+            CTxDestination address = DecodeDestination(addr_to);
             vTxOut.push_back(CTxOut(amount, GetScriptForDestination(address)));
-        } else if (flag == BYTE_SEND_TO_CONTRACT) {        // send to contract
+        } else if (flag == BYTE_SEND_TO_CONTRACT) { // send to contract
             char addr_to[64];
             CAmount amount;
-            int ret = fread((void *) addr_to, sizeof(char), 64, pipe_state_read);
+            int ret = fread((void*)addr_to, sizeof(char), 64, pipe_state_read);
             assert(ret >= 0);
-            ret = fread((void *) &amount, sizeof(long long), 1, pipe_state_read);
+            ret = fread((void*)&amount, sizeof(long long), 1, pipe_state_read);
             assert(ret >= 0);
             uint256 address = uint256S(addr_to);
             vTxOut.push_back(CTxOut(amount, GetScriptForDestination(address)));
@@ -150,18 +151,18 @@ static int call_rt(const uint256& contract, const std::vector<std::string> &args
             Contract contract;
             contract.action = ACTION_CALL;
             char contractName[65] = {0};
-            int ret = fread((void *) contractName, sizeof(char), 64, pipe_state_read);
+            int ret = fread((void*)contractName, sizeof(char), 64, pipe_state_read);
             assert(ret >= 0);
             contract.address = uint256S(contractName);
             int argc;
-            ret = fread((void *) &argc, sizeof(int), 1, pipe_state_read);
+            ret = fread((void*)&argc, sizeof(int), 1, pipe_state_read);
             assert(ret >= 0);
             for (int i = 0; i < argc; i++) {
                 int argLen;
-                ret = fread((void *) &argLen, sizeof(int), 1, pipe_state_read);
+                ret = fread((void*)&argLen, sizeof(int), 1, pipe_state_read);
                 assert(ret >= 0);
-                char *argName = new char[argLen + 1]();
-                ret = fread((void *) argName, sizeof(char), argLen, pipe_state_read);
+                char* argName = new char[argLen + 1]();
+                ret = fread((void*)argName, sizeof(char), argLen, pipe_state_read);
                 assert(ret >= 0);
                 contract.args.push_back(std::string(argName));
             }
@@ -179,8 +180,7 @@ static int call_rt(const uint256& contract, const std::vector<std::string> &args
     return 0;
 }
 
-bool ProcessContract(const Contract &contract, std::vector<CTxOut> &vTxOut, std::vector<uchar> &state, CAmount balance,
-                     std::vector<Contract> &nextContract)
+bool ProcessContract(const Contract& contract, std::vector<CTxOut>& vTxOut, std::vector<uchar>& state, CAmount balance, std::vector<Contract>& nextContract)
 {
     // std::cout<< "ITS IN" << std::endl;
     if (contract.action == contract_action::ACTION_NEW) {
@@ -190,11 +190,11 @@ bool ProcessContract(const Contract &contract, std::vector<CTxOut> &vTxOut, std:
         contract_code.write(contract.code.c_str(), contract.code.size());
         contract_code.close();
 
-        int ret = contract.usage == USAGE_SYS ? call_mkdll(contract.address,"-lpthread -lcrypto") : call_mkdll(contract.address,"");
+        int ret = contract.usage == USAGE_SYS ? call_mkdll(contract.address, "-lpthread -lcrypto") : call_mkdll(contract.address, "");
 
         if (ret < 0) {
             /* TODO: clean up files */
-            return false; 
+            return false;
         }
 
         if (call_rt(contract.address, contract.args, vTxOut, state, nextContract) < 0) {
@@ -212,40 +212,39 @@ bool ProcessContract(const Contract &contract, std::vector<CTxOut> &vTxOut, std:
     }
 
     // if(contract.usage == contract_usage::USAGE_SYS) {
-        LogPrintf("Recieve Contract: Init cmanager\n");
-        CBlockContractManager cmanager{};
-        // LogPrintf("Get cmanager path\n");
-        fs::path managerpath = GetCPORDir() / "cmanager.dat";
-        // LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
-        CAutoFile cfilemanager(fsbridge::fopen(managerpath ,"rb"), SER_DISK, CLIENT_VERSION);
-        if(!cmanager.isInit()) {
-            
-            if(cfilemanager.IsNull()) {
+    LogPrintf("Recieve Contract: Init cmanager\n");
+    CBlockContractManager cmanager{};
+    // LogPrintf("Get cmanager path\n");
+    fs::path managerpath = GetCPORDir() / "cmanager.dat";
+    // LogPrintf("Open cmanager path: %s\n",managerpath.c_str());
+    CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
+    if (!cmanager.isInit()) {
+        if (cfilemanager.IsNull()) {
             // LogPrintf("cmanager.dat not found... create 1\n");
             cmanager.InitParams();
             cmanager.InitKey();
             cmanager.setInit();
-            } else {
-                // LogPrintf("cmanager.dat serializing\n");
-              cfilemanager >> cmanager ;
-            }
+        } else {
+            // LogPrintf("cmanager.dat serializing\n");
+            cfilemanager >> cmanager;
         }
-        // LogPrintf("Create ipfsContract\n");
+    }
+    // LogPrintf("Create ipfsContract\n");
 
-        //TODO: Append Contract and state into cmanager
+    // TODO: Append Contract and state into cmanager
 
-        IpfsContract ipfsContract(contract);
-        cmanager.receiveContract(ipfsContract);
+    IpfsContract ipfsContract(contract);
+    cmanager.receiveContract(ipfsContract);
 
-            CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath ,"wb"), SER_DISK, CLIENT_VERSION);
+    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath, "wb"), SER_DISK, CLIENT_VERSION);
     size_t nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
     cfilemanagerOut << cmanager << nSize;
     // }
     CAmount amount = 0;
-    for (CTxOut &out :vTxOut) {
+    for (CTxOut& out : vTxOut) {
         amount = amount + out.nValue;
     }
-    if(amount > balance) {
+    if (amount > balance) {
         /* TODO: perform state recovery */
         return false;
     }
