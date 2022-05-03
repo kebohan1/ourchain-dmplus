@@ -696,6 +696,7 @@ void CBlockContractManager::challengeBlock(int nHeight)
                     NodeId nodeid = nodes.find(ipfs.second.getIP())->second;
                     g_connman->ForNodeMsg(nodeid, chalmsg);
                 }
+                ipfscontract.~IpfsContract();
             }
         }
         n_last_challenge_height = nHeight;
