@@ -277,6 +277,7 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
         destroy_cpor_challenge(pchallenge);
         destroy_cpor_proof(pproof);
     }
+    LogPrintf("memory before submit tx: %d\n",getValue());
     CTransactionRef tx;
     CCoinControl no_coin_control;
     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
