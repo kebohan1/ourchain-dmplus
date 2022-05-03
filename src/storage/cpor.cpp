@@ -1114,10 +1114,11 @@ CPOR_challenge* UnserializeChallenge(std::vector<unsigned char> from) {
     memcpy( nu_char, pfrom + offset, bigNumSize);
 		BN_bin2bn(nu_char, bigNumSize, newChallenge->nu[i]);
     offset += bigNumSize;
-    delete(nu_char);
+    delete [] nu_char;
   }
   // free(pfrom);
-  free(zp_char);
+  // free(zp_char);
+  delete [] zp_char;
 	// std::cout << "Unserialize Challenge cmp" <<std::endl;
   return newChallenge;
   
@@ -1245,8 +1246,8 @@ CPOR_proof *cpor_prove_file(std::string strfile, std::vector<unsigned char> tagf
 	
 	// std::cout <<"success" <<std::endl;
 	proof = cpor_create_proof_final(proof);
-	delete(block);
-	delete(charFile);
+	delete [] block;
+	delete [] charFile;
 	// if(tag) destroy_cpor_tag(tag);
 
 	// destroy_cpor_challenge(challenge);
@@ -1292,12 +1293,12 @@ std::vector<unsigned char> SerializeProof(CPOR_proof* proof) {
     BN_bn2bin(proof->mu[i], mu_char);
     memcpy(result + offset, mu_char,nSize);
     offset += nSize;
-    delete(mu_char);
+    delete [] mu_char;
   }
-  delete(sigma_char);
+  delete [] sigma_char;
 	// destroy_cpor_proof(proof);
   std::vector<unsigned char> resultV(result, result + size);
-  delete(result);
+  delete [] result;
   return resultV;
   
 }
@@ -1317,7 +1318,7 @@ CPOR_proof* UnserializeProof(std::vector<unsigned char> from) {
   BN_bin2bn(sigma_char, bigNumSize, newProof->sigma);
   offset += bigNumSize;
   
-  delete(sigma_char);
+  delete [] sigma_char;
   for(int i = 0;i < cNewParams.num_sectors; ++i){
 		
 		int newNum;
@@ -1328,7 +1329,7 @@ CPOR_proof* UnserializeProof(std::vector<unsigned char> from) {
     memcpy( mu_char,pfrom + offset, newNum);
     BN_bin2bn(mu_char, newNum, newProof->mu[i]);
     offset += newNum;
-    delete(mu_char);
+    delete [] mu_char;
   }
   return newProof;
   
@@ -1454,7 +1455,7 @@ std::vector<unsigned char> SerializeT(CPOR_t* t) {
     delete(alpha_char);
   }
   std::vector<unsigned char> vResult(result, result + size);
-  delete(result);
+  delete [] result;
   return vResult;
   
 }
@@ -1483,7 +1484,7 @@ CPOR_t* UnserializeT(std::vector<unsigned char> from) {
     memcpy(alpha_char, pfrom + offset, nSize);
 		BN_bin2bn(alpha_char, nSize, t->alpha[i]);
     offset += nSize;
-    delete(alpha_char);
+    delete [] alpha_char;
   }
   return t;
   

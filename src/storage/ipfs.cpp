@@ -102,6 +102,31 @@ static bool SendTx(CWallet * const pwallet, const Contract *contract, const CTxD
      }
  }
 
+int parseLine(char* line){
+    // This assumes that a digit will be found and the line ends in " Kb".
+    int i = strlen(line);
+    const char* p = line;
+    while (*p <'0' || *p > '9') p++;
+    line[i-3] = '\0';
+    i = atoi(p);
+    return i;
+}
+
+int getValue(){ //Note: this value is in KB!
+    FILE* file = fopen("/proc/self/status", "r");
+    int result = -1;
+    char line[128];
+
+    while (fgets(line, 128, file) != NULL){
+        if (strncmp(line, "VmSize:", 7) == 0){
+            result = parseLine(line);
+            break;
+        }
+    }
+    fclose(file);
+    return result;
+}
+
 void IpfsStorageManager::receiveMessage(CStorageMessage msg)
 {
     // LogPrintf("Process Storage Reqeust Msg, size: %d\n",msgs.size());
@@ -114,6 +139,7 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
 
 
     LogPrintf("CID: %s,TagCID: %s,ChallengeCID: %s\n", msg.CID, msg.TagCID, msg.firstChallengeCID);
+    LogPrintf("memory before: %d\n",getValue());
     // if (vStoredBlock.find(msg.hash) != vStoredBlock.end()) return;
     Contract contract;
     contract.address = contractHash;
@@ -197,9 +223,10 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
     std::string error;
     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
     vReadySolvingMsg.clear();
+    LogPrintf("memory after: %d\n",getValue());
 
     LogPrintf("Process Cmp\n");
-    DynamicStoreBlocks(savingNum);
+    // DynamicStoreBlocks(savingNum);
 }
 
 void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
@@ -209,6 +236,8 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
     EnsureWalletIsUnlocked(pwallet);
 
     LogPrintf("Recieve Challenge\n");
+    LogPrintf("memory before: %d\n",getValue());
+
     Contract contract;
 
     contract.action = contract_action::ACTION_CALL;
@@ -251,6 +280,8 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
     CTransactionRef tx;
     CCoinControl no_coin_control;
     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
+    LogPrintf("memory after: %d\n",getValue());
+
 }
 
 void IpfsStorageManager::init()
@@ -378,5 +409,6 @@ void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
             }
         }
     }
+    csvStream.close();
     ipfsCon.theContractState.num_blocks;
 }

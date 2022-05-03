@@ -876,6 +876,14 @@ static void appendToIpfsArray(IPFSNode cIpfsNode) {
   }
 }
 
+static void releaseBlocksArray(Block* oldBlock) {
+  for(int i = 0; i< theContractState.num_blocks; ++i) {
+    free(oldBlock[i].blockSavers);
+    free(oldBlock[i].array_proof_block);
+  }
+  free(oldBlock);
+}
+
 static void initBlockArray() {
   aBlocks = malloc(sizeof(Block) * INIT_BLOCK_ARRAY_SIZE);
 
@@ -898,7 +906,7 @@ static void appendToBlockArray(Block block) {
     for (int i = 0; i < theContractState.allocated_blocks_array_size; i++) {
       newBlocksArray[i] = aBlocks[i];
     }
-
+    releaseBlocksArray(aBlocks);
     aBlocks = newBlocksArray;
 
     aBlocks[theContractState.num_blocks] = block;
@@ -917,7 +925,7 @@ static void appendToBlockSaverArray(int* psaver, int index_saver,
     for (int i = 0; i < *allocated_saver_array_size; i++) {
       newSaverArray[i] = psaver[i];
     }
-
+    free(psaver);
     psaver = newSaverArray;
     *allocated_saver_array_size = new_allocated_saver_array_size;
   }
@@ -934,7 +942,7 @@ static void appendToProofArray(ProofBlock* proofList, ProofBlock proof,
     for (int i = 0; i < *allocated_proof_array_size; i++) {
       newSaverArray[i] = proofList[i];
     }
-
+    free(proofList);
     proofList = newSaverArray;
     *allocated_proof_array_size = new_allocated_saver_array_size;
   }
