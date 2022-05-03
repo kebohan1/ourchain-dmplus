@@ -100,7 +100,7 @@ class CBlockContractManager {
     };
     void appendColdPool(FlatFilePos pair);
     bool deployContract(std::vector<CStorageMessage> &);
-    void receiveContract(IpfsContract);
+    void receiveContract(IpfsContract&);
     CBlock* retrieveBlock(uint256);
     
     ADD_SERIALIZE_METHODS;

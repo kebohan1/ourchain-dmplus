@@ -949,6 +949,7 @@ static void appendToProofArray(ProofBlock* proofList, ProofBlock proof,
  * @return char*
  */
 char* HTTPrequest(char* path, int n_path) {
+  // err_printf("HTTPRequest\n");
   char* host = "127.0.0.1";  // 目標 URI
   char* PORT_NUM = "5001";   // HTTP port
 
@@ -975,10 +976,10 @@ char* HTTPrequest(char* path, int n_path) {
 
   // 釋放緩衝區記憶體
   free(buffer);
-  free(requestLine);
+  // free(requestLine);
 
-  free(CRLF);
-  free(headerFmt);
+  // free(CRLF);
+  // free(headerFmt);
   buffer = NULL;
 
   // 以 memset 清空 hints 結構
@@ -992,8 +993,8 @@ char* HTTPrequest(char* path, int n_path) {
   // 以從中取得 Host 的 IP 位址
   if ((gaiStatus = getaddrinfo(host, PORT_NUM, &hints, &result)) != 0)
     return NULL;
-  free(host);
-  free(PORT_NUM);
+
+
   // 分別以 domain, type, protocol 建立 socket 檔案描述符
   cfd = socket(result->ai_family, result->ai_socktype, 0);
 
@@ -1033,14 +1034,15 @@ char* HTTPrequest(char* path, int n_path) {
     }
     token = strtok(NULL, split);
   }
-  free(token);
+  // free(token);
 
   printf("source: %s\n", res);
   // 半雙工關閉 TCP Socket 連線
   // (i.e., 關閉寫入)
   shutdown(cfd, SHUT_WR);
-
-
+  // free(host);
+  // free(PORT_NUM);
+  // err_printf("res:%s\n",res);
   return res;
 
 }  // TODO: Write testing code to run=[-]
@@ -1617,8 +1619,9 @@ int contract_main(int argc, char** argv) {
        */
       int n_ipfs_index = findIPFSnode(argv[2]);
       err_printf("index:%d\n", n_ipfs_index);
+      if (n_ipfs_index < 0) return -1;
       for (int i = 4; i + 6 < argc; i += 7) {
-        err_printf("SaveBlocks: %s,%s,%s,%s,%s,%s,%s", argv[i], argv[i + 1],
+        err_printf("SaveBlocks: %s,%s,%s,%s,%s,%s,%s\n", argv[i], argv[i + 1],
                    argv[i + 2], argv[i + 3], argv[i + 4], argv[i + 5],
                    argv[i + 6]);
         int ret = saveBlockByDefault(argv[i], argv[i + 1], n_ipfs_index,

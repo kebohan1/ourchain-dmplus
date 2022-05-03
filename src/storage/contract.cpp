@@ -292,7 +292,7 @@ bool CBlockContractManager::deployContract(std::vector<CStorageMessage>& vDeploy
 }
 
 
-void CBlockContractManager::receiveContract(IpfsContract contract)
+void CBlockContractManager::receiveContract(IpfsContract& contract)
 {
     LOCK(cs_main);
 
