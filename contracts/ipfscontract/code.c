@@ -409,6 +409,7 @@ static unsigned int readState() {
     err_printf("offset = %u  count = %u\n", offset, count);
     assert(offset == count);
   }
+  free(buff);
   return offset;
 }
 
@@ -550,6 +551,7 @@ static unsigned int writeState() {
 
   // free(buff);
   releaseState();
+  // free(buff);
   return offset;
 }
 
@@ -1100,7 +1102,9 @@ CPOR_proof* UnserializeProof(unsigned char* pfrom) {
     memcpy(mu_char, pfrom + offset, newNum);
     BN_bin2bn(mu_char, newNum, newProof->mu[i]);
     offset += newNum;
+    free(mu_char);
   }
+  free(sigma_char);
   return newProof;
 }
 
@@ -1141,7 +1145,9 @@ CPOR_challenge* UnserializeChallenge(unsigned char* pfrom) {
     memcpy(nu_char, pfrom + offset, bigNumSize);
     BN_bin2bn(nu_char, bigNumSize, newChallenge->nu[i]);
     offset += bigNumSize;
+    free(nu_char);
   }
+  free(zp_char);
   return newChallenge;
 }
 
@@ -1165,6 +1171,7 @@ CPOR_t* UnserializeT(unsigned char* pfrom) {
     memcpy(alpha_char, pfrom + offset, nSize);
     BN_bin2bn(alpha_char, nSize, t->alpha[i]);
     offset += nSize;
+    free(alpha_char);
   }
   return t;
 }
