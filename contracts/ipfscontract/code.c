@@ -472,7 +472,7 @@ static unsigned int readBlocksArray(unsigned char* buffer,
     written_bytes += sizeof(Block);
     offset += sizeof(Block);
 
-    if (i <= theContractState.allocated_blocks_array_size) {
+    if (i <= theContractState.num_blocks) {
       aBlocks[i].blockSavers =
           malloc(sizeof(int) * aBlocks[i].allocated_blockSavers_size);
       memcpy(aBlocks[i].blockSavers, buffer + offset,
@@ -1406,8 +1406,8 @@ static int saveBlockByDefault(char* merkle_root, char* CID, int index_Ipfsnode,
   // err_printf("proof Block pos:%x\n",nowBlock->array_proof_block);
   if (blockIndex == -1) {
     appendToBlockArray(*nowBlock);
-    releaseBlocksArray(nowBlock);
-    // free(nowBlock); 
+    // releaseBlocksArray(nowBlock);
+    free(nowBlock); 
     // TODO: 0419blockIndex do not append
     blockIndex = theContractState.num_blocks;
   }

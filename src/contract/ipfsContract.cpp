@@ -49,8 +49,9 @@ unsigned int IpfsContract::readBlocksArray(unsigned char* buffer, unsigned int o
     written_bytes += sizeof(Block);
     offset += sizeof(Block);
 
-    if(i <= theContractState.allocated_blocks_array_size) {
-      aBlocks[i].blockSavers = new int[aBlocks[i].allocated_blockSavers_size];
+    if(i <= theContractState.num_blocks) {
+      // aBlocks[i].blockSavers = new int[aBlocks[i].allocated_blockSavers_size];
+      aBlocks[i].blockSavers = (int*) malloc(sizeof(int) * aBlocks[i].allocated_blockSavers_size);
       memcpy(aBlocks[i].blockSavers, buffer + offset, sizeof(int) * aBlocks[i].allocated_blockSavers_size);
       written_bytes += sizeof(int) * aBlocks[i].allocated_blockSavers_size;
       offset += sizeof(int) * aBlocks[i].allocated_blockSavers_size;
@@ -172,7 +173,7 @@ void IpfsContract::freeAllowanceArray(){
 void IpfsContract::freeBlocksArray(){
   // LogPrintf("free blocks item\n");
   for (int i = 0; i < theContractState.num_blocks; i++) {
-    delete(aBlocks[i].blockSavers);
+    free(aBlocks[i].blockSavers);
     if(aBlocks[i].array_proof_block) free(aBlocks[i].array_proof_block);
   }
   // LogPrintf("free blocks\n");
