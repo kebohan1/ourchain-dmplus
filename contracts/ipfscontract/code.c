@@ -501,17 +501,24 @@ static unsigned int readIpfsNodeArray(unsigned char* buffer,
   return sizeof(IPFSNode) * theContractState.allocated_ipfsnode_array_size;
 }
 
-static void releaseState(){
-  free(globalAccountArray);
-  free(aIpfsNode);
-  free(globalAllowanceArray);
-  for(int i = 0; i< theContractState.num_blocks; ++i) {
+static void releaseState() {
+  // err_printf("Free globalAccountArray\n");
+  if (globalAccountArray) free(globalAccountArray);
+  // err_printf("Free aIpfsNode\n");
+
+  if (aIpfsNode) free(aIpfsNode);
+  // err_printf("Free globalAllowanceArray\n");
+
+  if (globalAllowanceArray) free(globalAllowanceArray);
+  for (int i = 0; i < theContractState.num_blocks; i++) {  
     free(aBlocks[i].blockSavers);
     free(aBlocks[i].array_proof_block);
   }
-  free(aBlocks);
-}
+  // err_printf("Free aBlocks\n");
 
+  if (aBlocks) free(aBlocks);
+  // err_printf("Free cmp\n");
+}
 
 static unsigned int writeState() {
   /*
@@ -571,7 +578,7 @@ static unsigned int writeAccountArrayToState(unsigned char* buffer,
                                              unsigned int offset) {
   memcpy(buffer + offset, globalAccountArray,
          sizeof(Account) * theContractState.allocated_account_array_size);
-  
+
   return sizeof(Account) * theContractState.allocated_account_array_size;
 }
 
@@ -586,12 +593,12 @@ static unsigned int writeAllowanceArrayToState(unsigned char* buffer,
       memcpy(buffer + offset + written_bytes, globalAllowanceArray[i].records,
              sizeof(AllowanceRecord) *
                  globalAllowanceArray[i].allocated_array_size);
+                 
       written_bytes += sizeof(AllowanceRecord) *
                        globalAllowanceArray[i].allocated_array_size;
+      free(globalAllowanceArray[i].records);
     }
-    free(globalAllowanceArray[i].records);
   }
-  
 
   return written_bytes;
 }
@@ -606,15 +613,16 @@ static unsigned int writeBlocksArray(unsigned char* buffer,
       memcpy(buffer + offset + written_bytes, aBlocks[i].blockSavers,
              sizeof(int) * aBlocks[i].allocated_blockSavers_size);
       written_bytes += sizeof(int) * aBlocks[i].allocated_blockSavers_size;
+      
       memcpy(buffer + offset + written_bytes, aBlocks[i].array_proof_block,
              sizeof(ProofBlock) * aBlocks[i].allocated_array_proof_size);
       written_bytes +=
           sizeof(ProofBlock) * aBlocks[i].allocated_array_proof_size;
-    }
-    
-  }
-  
+      // err_printf("proof Block pos:%x\n",aBlocks[i].array_proof_block);
 
+      
+    }
+  }
 
   return written_bytes;
 }
@@ -879,7 +887,7 @@ static void appendToIpfsArray(IPFSNode cIpfsNode) {
 }
 
 static void releaseBlocksArray(Block* oldBlock) {
-  for(int i = 0; i< theContractState.num_blocks; ++i) {
+  for (int i = 0; i < theContractState.num_blocks; ++i) {
     free(oldBlock[i].blockSavers);
     free(oldBlock[i].array_proof_block);
   }
@@ -908,7 +916,7 @@ static void appendToBlockArray(Block block) {
     for (int i = 0; i < theContractState.allocated_blocks_array_size; i++) {
       newBlocksArray[i] = aBlocks[i];
     }
-    releaseBlocksArray(aBlocks);
+    free(aBlocks);
     aBlocks = newBlocksArray;
 
     aBlocks[theContractState.num_blocks] = block;
@@ -945,6 +953,7 @@ static void appendToProofArray(ProofBlock* proofList, ProofBlock proof,
       newSaverArray[i] = proofList[i];
     }
     free(proofList);
+    proofList=NULL;
     proofList = newSaverArray;
     *allocated_proof_array_size = new_allocated_saver_array_size;
   }
@@ -1003,7 +1012,6 @@ char* HTTPrequest(char* path, int n_path) {
   // 以從中取得 Host 的 IP 位址
   if ((gaiStatus = getaddrinfo(host, PORT_NUM, &hints, &result)) != 0)
     return NULL;
-
 
   // 分別以 domain, type, protocol 建立 socket 檔案描述符
   cfd = socket(result->ai_family, result->ai_socktype, 0);
@@ -1346,6 +1354,7 @@ static int saveBlockByDefault(char* merkle_root, char* CID, int index_Ipfsnode,
   IPFSNode* pIpfsNode = &aIpfsNode[index_Ipfsnode];
   int blockIndex = findBlock(merkle_root);
   Block* nowBlock;
+  int newFlag = 0;
   err_printf("blockIndex: %d\n", blockIndex);
   if (blockIndex > -1) {
     // Check if ipfsNode exist in the blocksaver
@@ -1363,6 +1372,7 @@ static int saveBlockByDefault(char* merkle_root, char* CID, int index_Ipfsnode,
     strcpy(nowBlock->CIDHash, CID);
     strcpy(nowBlock->tfileCID, tfileCID);
     strcpy(nowBlock->tagCID, tagCID);
+    newFlag = 1;
   }
 
   /**
@@ -1370,7 +1380,12 @@ static int saveBlockByDefault(char* merkle_root, char* CID, int index_Ipfsnode,
    *
    */
   int ret = validateProof(proofCID, challengCID, nowBlock);
-  if (!ret) return -1;
+  if (!ret){
+    if(newFlag){
+      releaseBlocksArray(nowBlock);
+    }
+    return -1;
+  } 
 
   appendToBlockSaverArray(nowBlock->blockSavers, index_Ipfsnode,
                           &nowBlock->allocated_blockSavers_size,
@@ -1388,14 +1403,15 @@ static int saveBlockByDefault(char* merkle_root, char* CID, int index_Ipfsnode,
   free(proofBlock);
 
   // free(proofBlock);
+  // err_printf("proof Block pos:%x\n",nowBlock->array_proof_block);
   if (blockIndex == -1) {
     appendToBlockArray(*nowBlock);
-    free(nowBlock);
+    releaseBlocksArray(nowBlock);
+    // free(nowBlock); 
     // TODO: 0419blockIndex do not append
     blockIndex = theContractState.num_blocks;
   }
   
-
   return blockIndex;
 }
 
@@ -1412,8 +1428,7 @@ static int saveProof(char* merkle_root, char* proofCID, char* challengeCID,
 
   // cblock->array_proof_block[cblock->num_proof] = *cProofBlock;
   appendToProofArray(cblock->array_proof_block, *cProofBlock,
-                     &cblock->allocated_array_proof_size,
-                     &cblock->num_proof);
+                     &cblock->allocated_array_proof_size, &cblock->num_proof);
   // free(cblock);
   free(cProofBlock);
   return 1;
@@ -1575,12 +1590,13 @@ int contract_main(int argc, char** argv) {
       err_printf("index:%d\n", n_ipfs_index);
       if (n_ipfs_index < 0) return -1;
       for (int i = 3; i + 3 < argc; i += 4) {
-        int ret = saveProof(argv[i], argv[i + 1], argv[i + 2], &aIpfsNode[n_ipfs_index],
-                            atoi(argv[i + 3]));
-        err_printf("Proofs:%d,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1], argv[i + 2], argv[i + 3]);
-        if (ret > 0){
-          out_printf("Proofs:%d,%s,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1], argv[i + 2], argv[i + 3],time(NULL));
-          
+        int ret = saveProof(argv[i], argv[i + 1], argv[i + 2],
+                            &aIpfsNode[n_ipfs_index], atoi(argv[i + 3]));
+        err_printf("Proofs:%d,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1],
+                   argv[i + 2], argv[i + 3]);
+        if (ret > 0) {
+          out_printf("Proofs:%d,%s,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1],
+                     argv[i + 2], argv[i + 3], time(NULL));
         }
         // out_clear();
       }

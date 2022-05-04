@@ -134,11 +134,7 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
 {
     // LogPrintf("Process Storage Reqeust Msg, size: %d\n",msgs.size());
     // LogPrintf("The smart contract key store is : %s\n",RegisterKey);
-    if (RegisterKey.empty()) return;
-    CWallet* const pwallet = getWallet();
-    CTxDestination dest = getDest(pwallet);
-    // EnsureWalletIsUnlocked(pwallet);
-    if (pwallet->IsLocked()) return;
+
 
 
     LogPrintf("CID: %s,TagCID: %s,ChallengeCID: %s\n", msg.CID, msg.TagCID, msg.firstChallengeCID);
@@ -161,13 +157,18 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
     vReadySolvingMsg.push_back(msg);
     int nColdPoolMax = gArgs.GetArg("-coldpool", 29);
     if (vReadySolvingMsg.size() < nColdPoolMax) return;
-
+    if (RegisterKey.empty()) return;
+    CWallet* const pwallet = getWallet();
+    CTxDestination dest = getDest(pwallet);
+    // EnsureWalletIsUnlocked(pwallet);
+    if (pwallet->IsLocked()) return;
 
     contract.args.push_back("save_blocks");
     contract.args.push_back(RegisterKey); // pubkey
     contract.args.push_back(to_string(vReadySolvingMsg.size()));
     contract.action = contract_action::ACTION_CALL;
     contract.usage = contract_usage::USAGE_USER;
+    if(!fs::exists(GetDataDir()/"contracts"/contract.address.ToString()/"state")) return;
     IpfsContract oldContract{contract};
     int savingNum = 0;
     for (auto readymsg : vReadySolvingMsg) {
