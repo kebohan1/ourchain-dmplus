@@ -260,7 +260,7 @@ unsigned int charVal(char i){
     return (i >= '0' && i <= '9') ? i - '0' : i - 'a' + 10;
 }
 
-std::vector<unsigned char> StrHex(std::string str)
+std::vector<unsigned char> StrHex(std::string& str)
 {
     std::vector<unsigned char> rv;
     const char* cStr = str.c_str();

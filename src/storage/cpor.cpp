@@ -888,6 +888,7 @@ int local_cpor_tag_file(std::string str, uint256 hash, CPOR_key* pkey){
   // LogPrintf("Finalize\n");
 	destroy_cpor_t(t);
 	// if(file) fclose(file);
+	delete(file);
 	if(tagfile) fclose(tagfile);
 	if(tfile) fclose(tfile);
 	return 1;
@@ -1071,17 +1072,19 @@ std::vector<unsigned char> SerializeChallenge(CPOR_challenge* challenge) {
 
     offset += sizeof(int);
     memcpy(result + offset, nu_char ,nuSize);
-
+		delete(nu_char);
     offset += nuSize;
   }
-
+	delete(zp_char);
   // fwrite(s.c_str(),s.length(),1,f);
-  return std::vector<unsigned char>(result, result + size);
+	std::vector<unsigned char> vResult(result, result + size);
+	free(result);
+  return vResult;
 
   
 }
 
-CPOR_challenge* UnserializeChallenge(std::vector<unsigned char> from) {
+CPOR_challenge* UnserializeChallenge(std::vector<unsigned char>& from) {
   
   unsigned char* pfrom = &from[0];
 	unsigned char* zp_char;
@@ -1211,7 +1214,7 @@ cleanup:
  * @param challenge 
  * @return CPOR_proof* 
  */
-CPOR_proof *cpor_prove_file(std::string strfile, std::vector<unsigned char> tagfile, CPOR_challenge *challenge){
+CPOR_proof *cpor_prove_file(std::string& strfile, std::vector<unsigned char>& tagfile, CPOR_challenge *challenge){
 
 	CPOR_tag *tag = NULL;
 	CPOR_proof *proof = NULL;

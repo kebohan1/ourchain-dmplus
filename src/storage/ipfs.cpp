@@ -1,4 +1,5 @@
 #include <clientversion.h>
+#include <consensus/validation.h>
 #include <contract/contract.h>
 #include <fs.h>
 #include <pubkey.h>
@@ -11,7 +12,6 @@
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 #include <wallet/walletutil.h>
-#include <consensus/validation.h>
 #define COLDPOOL_MAX 30
 
 using std::chrono::duration_cast;
@@ -71,54 +71,57 @@ static CTxDestination getDest(CWallet* const pwallet)
     return dest;
 }
 
-static bool SendTx(CWallet * const pwallet, const Contract *contract, const CTxDestination &address, CTransactionRef& wtxNew, const CCoinControl& coin_control, string& strError)
- {
+static bool SendTx(CWallet* const pwallet, const Contract* contract, const CTxDestination& address, CTransactionRef& wtxNew, const CCoinControl& coin_control, string& strError)
+{
     //  CAmount curBalance = pwallet->GetBalance();
     auto locked_chain = pwallet->chain().lock();
-     if (pwallet->GetBroadcastTransactions() && !pwallet->chain().p2pEnabled())
+    if (pwallet->GetBroadcastTransactions() && !pwallet->chain().p2pEnabled())
         strError = "Error: Peer-to-peer functionality missing or disabled";
-        return false;
+    return false;
 
-     // Parse Bitcoin address
-     CScript scriptPubKey = GetScriptForDestination(address);
+    // Parse Bitcoin address
+    CScript scriptPubKey = GetScriptForDestination(address);
 
-     // Create and send the transaction
-     CReserveKey reservekey(pwallet);
-     CAmount nFeeRequired;
-     std::vector<CRecipient> vecSend;
-     int nChangePosRet = -1;
+    // Create and send the transaction
+    CReserveKey reservekey(pwallet);
+    CAmount nFeeRequired;
+    std::vector<CRecipient> vecSend;
+    int nChangePosRet = -1;
     //  CRecipient recipient = {scriptPubKey, curBalance, true};
     CRecipient recipient = {scriptPubKey, 0, false};
-     vecSend.push_back(recipient);
-     if (!pwallet->CreateTransaction(*locked_chain,vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, coin_control, true, contract, true)) {
+    vecSend.push_back(recipient);
+    if (!pwallet->CreateTransaction(*locked_chain, vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, coin_control, true, contract, true)) {
         return false;
-     }
-     CValidationState state;
-     mapValue_t mapValue;
+    }
+    CValidationState state;
+    mapValue_t mapValue;
     if (!pwallet->CommitTransaction(wtxNew, std::move(mapValue), {} /* orderForm */, reservekey, state)) {
-    //  if (!pwallet->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
-         strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
+        //  if (!pwallet->CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+        strError = strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason());
         return false;
-     }
- }
+    }
+}
 
-int parseLine(char* line){
+int parseLine(char* line)
+{
     // This assumes that a digit will be found and the line ends in " Kb".
     int i = strlen(line);
     const char* p = line;
-    while (*p <'0' || *p > '9') p++;
-    line[i-3] = '\0';
+    while (*p < '0' || *p > '9')
+        p++;
+    line[i - 3] = '\0';
     i = atoi(p);
     return i;
 }
 
-int getValue(){ //Note: this value is in KB!
+int getValue()
+{ // Note: this value is in KB!
     FILE* file = fopen("/proc/self/status", "r");
     int result = -1;
     char line[128];
 
-    while (fgets(line, 128, file) != NULL){
-        if (strncmp(line, "VmSize:", 7) == 0){
+    while (fgets(line, 128, file) != NULL) {
+        if (strncmp(line, "VmSize:", 7) == 0) {
             result = parseLine(line);
             break;
         }
@@ -139,27 +142,27 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
 
 
     LogPrintf("CID: %s,TagCID: %s,ChallengeCID: %s\n", msg.CID, msg.TagCID, msg.firstChallengeCID);
-    LogPrintf("memory before: %d\n",getValue());
+    LogPrintf("memory before: %d\n", getValue());
     // if (vStoredBlock.find(msg.hash) != vStoredBlock.end()) return;
     Contract contract;
     contract.address = contractHash;
     fs::path contractState = GetDataDir() / "contracts" / msg.hash.ToString() / "state";
     Block* oldBlock;
-    if(fs::exists(contractState)){
+    if (fs::exists(contractState)) {
         IpfsContract oldContract{contract};
         oldBlock = oldContract.findBlock(msg.hash.ToString());
-        if(oldBlock != nullptr){
+        if (oldBlock != nullptr) {
             LogPrintf("Find block in state\n");
-            // free(oldBlock); 
+            // free(oldBlock);
             return;
         }
     }
-    
+
     vReadySolvingMsg.push_back(msg);
-    int nColdPoolMax = gArgs.GetArg("-coldpool",29);
+    int nColdPoolMax = gArgs.GetArg("-coldpool", 29);
     if (vReadySolvingMsg.size() < nColdPoolMax) return;
-    
-    
+
+
     contract.args.push_back("save_blocks");
     contract.args.push_back(RegisterKey); // pubkey
     contract.args.push_back(to_string(vReadySolvingMsg.size()));
@@ -168,24 +171,22 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
     IpfsContract oldContract{contract};
     int savingNum = 0;
     for (auto readymsg : vReadySolvingMsg) {
-        
         oldBlock = oldContract.findBlock(readymsg.hash.ToString());
-        if(oldBlock != nullptr){
+        if (oldBlock != nullptr) {
             LogPrintf("Find block in state\n");
-            // free(oldBlock); 
+            // free(oldBlock);
             continue;
-        } 
+        }
         PinIPFS(readymsg.CID);
         PinIPFS(readymsg.TagCID);
-        std::string block = GetFromIPFS(readymsg.CID);
-        std::string tag = GetFromIPFS(readymsg.TagCID);
-        std::string challenge = GetFromIPFS(readymsg.firstChallengeCID);
         LogPrintf("IPFS get cmp\n");
         // std::cout << "Get All needed file cmp" <<std::endl;
 
-        CPOR_challenge* pchallenge = UnserializeChallenge(StrHex(challenge));
+        CPOR_challenge* pchallenge = UnserializeChallenge(StrHex(GetFromIPFS(readymsg.firstChallengeCID)));
 
-        CPOR_proof* pproof = cpor_prove_file(block, StrHex(tag), pchallenge);
+        CPOR_proof* pproof = cpor_prove_file(GetFromIPFS(readymsg.CID),
+                                            StrHex(GetFromIPFS(readymsg.TagCID)),
+                                            pchallenge);
         std::string proofCID = AddToIPFS(HexStr(SerializeProof(pproof)));
         LogPrintf("Serialize IPFS cmp\n");
         // std::cout << "Unserialize CPOR_challenge" << UnserializeChallenge(StrHex(challenge))->I <<std::endl;
@@ -217,13 +218,13 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
         ++savingNum;
     }
 
-    LogPrintf("argc: %d\n",contract.args.size());
+    LogPrintf("argc: %d\n", contract.args.size());
     CTransactionRef tx;
     CCoinControl no_coin_control;
     std::string error;
     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
     vReadySolvingMsg.clear();
-    LogPrintf("memory after: %d\n",getValue());
+    LogPrintf("memory after: %d\n", getValue());
 
     LogPrintf("Process Cmp\n");
     // DynamicStoreBlocks(savingNum);
@@ -236,7 +237,7 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
     EnsureWalletIsUnlocked(pwallet);
 
     LogPrintf("Recieve Challenge\n");
-    LogPrintf("memory before: %d\n",getValue());
+    LogPrintf("memory before: %d\n", getValue());
 
     Contract contract;
 
@@ -246,11 +247,11 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
     contract.args.push_back("proof_blocks");
     contract.args.push_back(RegisterKey); // pubkey
     IpfsContract oldContract{contract};
-    LogPrintf("Msg size: %d\n",msg.vChallenge.size());
+    LogPrintf("Msg size: %d\n", msg.vChallenge.size());
     for (auto& item : msg.vChallenge) {
-        LogPrintf("block hash: %s\n",item.first.ToString());
+        LogPrintf("block hash: %s\n", item.first.ToString());
         Block* oldBlock = oldContract.findBlock(item.first.ToString());
-        if(oldBlock == nullptr) continue;
+        if (oldBlock == nullptr) continue;
         std::string block = GetFromIPFS(oldBlock->CIDHash);
         std::string challenge = GetFromIPFS(item.second);
         std::string tag = GetFromIPFS(oldBlock->tagCID);
@@ -277,12 +278,11 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
         destroy_cpor_challenge(pchallenge);
         destroy_cpor_proof(pproof);
     }
-    LogPrintf("memory before submit tx: %d\n",getValue());
+    LogPrintf("memory before submit tx: %d\n", getValue());
     CTransactionRef tx;
     CCoinControl no_coin_control;
     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
-    LogPrintf("memory after: %d\n",getValue());
-
+    LogPrintf("memory after: %d\n", getValue());
 }
 
 void IpfsStorageManager::init()
@@ -320,7 +320,7 @@ void IpfsStorageManager::DynamicStoreBlocks(int already_stored_num)
     fs::path csvPath = GetDataDir() / "dynamic.csv";
     auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     fs::path stateFile = GetDataDir() / "contracts" / contractHash.ToString() / "state";
-    if(!fs::exists(stateFile)) return;
+    if (!fs::exists(stateFile)) return;
     IpfsContract ipfsCon(contract);
     if (ipfsCon.nInit == 0) return;
     std::fstream csvStream;

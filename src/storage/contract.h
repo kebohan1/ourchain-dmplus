@@ -170,13 +170,13 @@ class CBlockContractManager {
     void InitParams();
     int ReadKey();
 
-    void workingSet(uint256 hash,FlatFilePos);
+    void workingSet(uint256& hash,FlatFilePos&);
     std::vector<CStorageMessage> pushColdPool();
     void automaticColdPool();
     void hotColdClassifier(CBlock* block);
-    bool lookupColdPool(FlatFilePos pos);
-    bool lookupWorkingSet(FlatFilePos pos);
-    void GetBackFromIPFS(CBlock& block, FlatFilePos pos);
+    bool lookupColdPool(FlatFilePos& pos);
+    bool lookupWorkingSet(FlatFilePos& pos);
+    void GetBackFromIPFS(CBlock& block, FlatFilePos& pos);
     void challengeBlock(int nHeight);
 };
 
