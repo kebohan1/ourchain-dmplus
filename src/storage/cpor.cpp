@@ -138,6 +138,17 @@ cleanup:
 	
 }
 
+void destroy_cpor_key(CPOR_key *key, unsigned int enc_key_size, unsigned int mac_key_size) {
+  if(!key) return;
+	if(key->k_enc) sfree(key->k_enc, enc_key_size);
+	key->k_enc_size = 0;
+	if(key->k_mac) sfree(key->k_mac, mac_key_size);
+	key->k_mac_size = 0;
+	if(key->global) destroy_cpor_global(key->global);
+	sfree(key, sizeof(CPOR_key));
+
+	return;
+}
 
 void destroy_cpor_key(CPOR_key *key){
 
@@ -1492,15 +1503,15 @@ CPOR_t* UnserializeT(std::vector<unsigned char> from) {
   
 }
 
-void destroy_cpor_key(CPOR_key *key){
+// void destroy_cpor_key(CPOR_key *key){
 
-	if(!key) return;
-	if(key->k_enc) sfree(key->k_enc, cNewParams.enc_key_size);
-	key->k_enc_size = 0;
-	if(key->k_mac) sfree(key->k_mac, cNewParams.mac_key_size);
-	key->k_mac_size = 0;
-	if(key->global) destroy_cpor_global(key->global);
-	sfree(key, sizeof(CPOR_key));
+// 	if(!key) return;
+// 	if(key->k_enc) sfree(key->k_enc, cNewParams.enc_key_size);
+// 	key->k_enc_size = 0;
+// 	if(key->k_mac) sfree(key->k_mac, cNewParams.mac_key_size);
+// 	key->k_mac_size = 0;
+// 	if(key->global) destroy_cpor_global(key->global);
+// 	sfree(key, sizeof(CPOR_key));
 
-	return;
-}
+// 	return;
+// }

@@ -156,7 +156,7 @@ class CBlockContractManager {
     }
 
     void SetNull(){
-      destroy_cpor_key(pkey);
+      destroy_cpor_key(pkey,cParams.enc_key_size,cParams.mac_key_size);
       vColdPool.clear();
       vColdBlock.clear();
       vWorkingSet.clear();

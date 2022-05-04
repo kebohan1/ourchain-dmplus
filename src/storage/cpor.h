@@ -67,7 +67,7 @@ class CPOR_newParams {
 int local_cpor_tag_file(std::string str, uint256 hash, CPOR_key* pkey);
 CPOR_key *allocate_cpor_key(unsigned int enc_key_size, unsigned int mac_key_size);
 void destroy_cpor_key(CPOR_key *key, unsigned int enc_key_size, unsigned int mac_key_size);
-void destroy_cpor_key(CPOR_key*);
+// void destroy_cpor_key(CPOR_key*);
 CPOR_challenge *cpor_create_challenge(CPOR_global *global, unsigned int n);
 
 void destroy_cpor_challenge(CPOR_challenge *challenge);
