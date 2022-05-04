@@ -888,7 +888,7 @@ int local_cpor_tag_file(std::string str, uint256 hash, CPOR_key* pkey){
   // LogPrintf("Finalize\n");
 	destroy_cpor_t(t);
 	// if(file) fclose(file);
-	delete(file);
+	// delete(file);
 	if(tagfile) fclose(tagfile);
 	if(tfile) fclose(tfile);
 	return 1;
