@@ -38,7 +38,7 @@ using std::chrono::system_clock;
  * @param line 
  * @return int 
  */
-int parseLine(char* line)
+static int parseLine(char* line)
 {
     // This assumes that a digit will be found and the line ends in " Kb".
     int i = strlen(line);
@@ -50,7 +50,7 @@ int parseLine(char* line)
     return i;
 }
 
-int getValue()
+static int getValue()
 { // Note: this value is in KB!
     FILE* file = fopen("/proc/self/status", "r");
     int result = -1;
@@ -196,7 +196,7 @@ void CBlockContractManager::appendColdPool(FlatFilePos pair)
     vColdPool.push_back(pair);
 }
 
-void CBlockContractManager::workingSet(uint256& hash, FlatFilePos& pos)
+void CBlockContractManager::workingSet(uint256 hash, FlatFilePos pos)
 {
     // std::cout << "workingset size:" << vWorkingSet.size() <<std::endl;
     for (auto it = vWorkingSet.begin(); it != vWorkingSet.end(); ++it) {
@@ -242,7 +242,7 @@ void CBlockContractManager::hotColdClassifier(CBlock* block)
 {
 }
 
-void CBlockContractManager::GetBackFromIPFS(CBlock& block, FlatFilePos& pos)
+void CBlockContractManager::GetBackFromIPFS(CBlock& block, FlatFilePos pos)
 {
     if (vColdBlock.find(pos.hash) != vColdBlock.end()) {
         LogPrintf("Get block from ipfs: CID: %s\n", vColdBlock.find(pos.hash)->second.CID);

@@ -1084,7 +1084,7 @@ std::vector<unsigned char> SerializeChallenge(CPOR_challenge* challenge) {
   
 }
 
-CPOR_challenge* UnserializeChallenge(std::vector<unsigned char>& from) {
+CPOR_challenge* UnserializeChallenge(std::vector<unsigned char> from) {
   
   unsigned char* pfrom = &from[0];
 	unsigned char* zp_char;
@@ -1214,7 +1214,7 @@ cleanup:
  * @param challenge 
  * @return CPOR_proof* 
  */
-CPOR_proof *cpor_prove_file(std::string& strfile, std::vector<unsigned char>& tagfile, CPOR_challenge *challenge){
+CPOR_proof *cpor_prove_file(std::string strfile, std::vector<unsigned char> tagfile, CPOR_challenge *challenge){
 
 	CPOR_tag *tag = NULL;
 	CPOR_proof *proof = NULL;

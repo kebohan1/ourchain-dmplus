@@ -102,7 +102,7 @@ static bool SendTx(CWallet* const pwallet, const Contract* contract, const CTxDe
     }
 }
 
-int parseLine(char* line)
+static int parseLine(char* line)
 {
     // This assumes that a digit will be found and the line ends in " Kb".
     int i = strlen(line);
@@ -114,7 +114,7 @@ int parseLine(char* line)
     return i;
 }
 
-int getValue()
+static int getValue()
 { // Note: this value is in KB!
     FILE* file = fopen("/proc/self/status", "r");
     int result = -1;
