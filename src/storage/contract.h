@@ -20,6 +20,10 @@ public:
   std::string ip;
   CIPFSNode(){};
   CIPFSNode(std::string pubKey, std::string ip) : pubKey(pubKey), ip(ip) {}
+  ~CIPFSNode(){
+    pubKey.clear();
+    ip.clear();
+  }
   std::string getIP(){
     return ip;
   }
@@ -40,7 +44,16 @@ class StorageContract{
     std::map<std::string, CIPFSNode> vIPFSNode;
     int nReputation = 0;
     uint256 hash;
-    StorageContract(){};
+    StorageContract(){}
+    ~StorageContract(){
+      SetNull();
+    }
+
+    void SetNull(){
+      vIPFSNode.clear();
+      nReputation=0;
+      hash.SetNull();
+    }
     
     ADD_SERIALIZE_METHODS;
 
@@ -62,7 +75,15 @@ class CBlockEach {
     int nHeight;
     CBlockEach(){};
     CBlockEach(std::string CID) : CID(CID){};
+    ~CBlockEach(){
+      SetNull();
+    }
     void Challenge();
+    void SetNull(){
+      CID.clear();
+      hash.SetNull();
+      tfileCID.clear();
+    }
 
     ADD_SERIALIZE_METHODS;
 
@@ -98,6 +119,10 @@ class CBlockContractManager {
     //  InitKey();
     //   LogPrintf("init cmp\n"); 
     };
+
+    ~CBlockContractManager(){
+      SetNull();
+    }
     void appendColdPool(FlatFilePos pair);
     bool deployContract(std::vector<CStorageMessage> &);
     void receiveContract(IpfsContract&);
@@ -128,6 +153,14 @@ class CBlockContractManager {
     }
     void setInit(){
       init = 1;
+    }
+
+    void SetNull(){
+      destroy_cpor_key(pkey);
+      vColdPool.clear();
+      vColdBlock.clear();
+      vWorkingSet.clear();
+      vStorageContract.clear();
     }
 
     bool isInit() {

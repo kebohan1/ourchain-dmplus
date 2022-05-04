@@ -1421,6 +1421,8 @@ int cpor_verify_file(std::string hash, CPOR_challenge *challenge, CPOR_proof *pr
 	ret = cpor_verify_proof(challenge->global, proof, challenge, t->k_prf, t->alpha);
 
 	if(t) destroy_cpor_t(t);
+  if(challenge) destroy_cpor_challenge(challenge);
+  if(proof) destroy_cpor_proof(proof);
 	fclose(tfile);
 	
 	return ret;
@@ -1488,4 +1490,17 @@ CPOR_t* UnserializeT(std::vector<unsigned char> from) {
   }
   return t;
   
+}
+
+void destroy_cpor_key(CPOR_key *key){
+
+	if(!key) return;
+	if(key->k_enc) sfree(key->k_enc, cNewParams.enc_key_size);
+	key->k_enc_size = 0;
+	if(key->k_mac) sfree(key->k_mac, cNewParams.mac_key_size);
+	key->k_mac_size = 0;
+	if(key->global) destroy_cpor_global(key->global);
+	sfree(key, sizeof(CPOR_key));
+
+	return;
 }

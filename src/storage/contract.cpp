@@ -355,6 +355,7 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
                         }
                         destroy_cpor_challenge(challenge);
                         destroy_cpor_proof(proof);
+                        destroy_cpor_t(t);
                     } else {
                         ret = cpor_verify_file(blockIter->second.hash.ToString(),
                             UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[6]))),
@@ -514,6 +515,7 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
                 auto proofTimeEnd = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
                 csvStream << proofTimeEnd << "," << coldblock.hash.ToString() << ",2";
             }
+            csvStream.close();
         }
     } else {
         StorageContract newS;
@@ -524,7 +526,7 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
             ipfsNode.ip = contract.aIpfsNode[i].ip;
             newS.vIPFSNode.insert(std::pair<std::string, CIPFSNode>(ipfsNode.pubKey, ipfsNode));
         }
-        LogPrintf("Insert new contract");
+        LogPrintf("Insert new contract\n");
         newS.hash = contract.getAddress();
         vStorageContract.insert(std::pair<uint256, StorageContract>(newS.hash, newS));
     }
@@ -658,7 +660,6 @@ void CBlockContractManager::challengeBlock(int nHeight)
                 Contract ccontract;
                 ccontract.address = Itemcontract.second.hash;
                 IpfsContract ipfscontract(ccontract);
-                ipfscontract.init();
 
                 LogPrintf("IPFS contract num_ipfsnode:%d\n", ipfscontract.theContractState.num_ipfsnode);
                 int nChallengeblocks = gArgs.GetArg("-challengeblocks",CHALLENGE_BLOCKS);
@@ -699,6 +700,7 @@ void CBlockContractManager::challengeBlock(int nHeight)
                 ipfscontract.~IpfsContract();
             }
         }
+        csvStream.close();
         n_last_challenge_height = nHeight;
     }
 }
