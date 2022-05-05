@@ -1679,7 +1679,7 @@ CTransactionRef ProcessContractTx(const Contract& cont, CCoinsViewCache& inputs,
     ContState cs;
     CAmount balance = 0;
     inputs.GetContState(cont.address, cs);
-    cs.state.clear();
+    // cs.state.clear();
     LogPrintf("State size:%d\n",cs.DynamicMemoryUsage());
     for (const COutPoint& outpoint : cs.coins) {
         mtx.vin.push_back(CTxIn(outpoint));
