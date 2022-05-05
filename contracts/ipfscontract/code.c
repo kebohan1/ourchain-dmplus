@@ -537,7 +537,8 @@ static unsigned int writeState() {
      array and then call only one time state_write()
   */
 
-  unsigned char buff[sizeof(int) + sizeof(char) * theContractState.size_contract];
+  // unsigned char buff[sizeof(int) + sizeof(char) * theContractState.size_contract];
+  unsigned char* buff = malloc(sizeof(int) + sizeof(char) * theContractState.size_contract);
   unsigned int offset = 0;
 
   memcpy(buff, &theContractState.size_contract, sizeof(int));
@@ -557,7 +558,7 @@ static unsigned int writeState() {
 
   // free(buff);
   releaseState();
-  // free(buff);
+  free(buff);
   return offset;
 }
 
