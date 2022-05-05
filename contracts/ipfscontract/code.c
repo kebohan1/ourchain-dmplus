@@ -600,7 +600,7 @@ static unsigned int writeAllowanceArrayToState(unsigned char* buffer,
     memcpy(buffer + offset + written_bytes, &globalAllowanceArray[i],
            sizeof(Allowance));
     written_bytes += sizeof(Allowance);
-    if (i <= theContractState.num_allowance) {
+    if (i < theContractState.num_allowance) {
       memcpy(buffer + offset + written_bytes, globalAllowanceArray[i].records,
              sizeof(AllowanceRecord) *
                  globalAllowanceArray[i].allocated_array_size);
@@ -620,7 +620,7 @@ static unsigned int writeBlocksArray(unsigned char* buffer,
   for (int i = 0; i < theContractState.allocated_blocks_array_size; i++) {
     memcpy(buffer + offset + written_bytes, &aBlocks[i], sizeof(Block));
     written_bytes += sizeof(Block);
-    if (i <= theContractState.num_blocks) {
+    if (i < theContractState.num_blocks) {
       memcpy(buffer + offset + written_bytes, aBlocks[i].blockSavers,
              sizeof(int) * aBlocks[i].allocated_blockSavers_size);
       written_bytes += sizeof(int) * aBlocks[i].allocated_blockSavers_size;
@@ -663,7 +663,7 @@ static unsigned int compute_contract_size() {
       sizeof(Block) * theContractState.allocated_blocks_array_size;
   unsigned int sz_proofs_array = 0;
   unsigned int sz_savers_array = 0;
-  for (int i = 0; i <= theContractState.num_blocks; ++i) {
+  for (int i = 0; i < theContractState.num_blocks; ++i) {
     sz_proofs_array +=
         aBlocks[i].allocated_array_proof_size * sizeof(ProofBlock);
     sz_savers_array += aBlocks[i].allocated_blockSavers_size * sizeof(int);
