@@ -472,7 +472,7 @@ static unsigned int readBlocksArray(unsigned char* buffer,
     written_bytes += sizeof(Block);
     offset += sizeof(Block);
 
-    if (i <= theContractState.num_blocks) {
+    if (i < theContractState.num_blocks) {
       aBlocks[i].blockSavers =
           malloc(sizeof(int) * aBlocks[i].allocated_blockSavers_size);
       memcpy(aBlocks[i].blockSavers, buffer + offset,
