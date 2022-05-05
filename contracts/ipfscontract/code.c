@@ -511,12 +511,12 @@ static void releaseState() {
 
   if (globalAllowanceArray) free(globalAllowanceArray);
   for (int i = 0; i < theContractState.num_blocks; i++) {  
-    free(aBlocks[i].blockSavers);
-    free(aBlocks[i].array_proof_block);
+    sfree(aBlocks[i].blockSavers,aBlocks[i].allocated_blockSavers_size);
+    sfree(aBlocks[i].array_proof_block,aBlocks[i].allocated_blockSavers_size);
   }
   // err_printf("Free aBlocks\n");
 
-  if (aBlocks) free(aBlocks);
+  if (aBlocks) sfree(aBlocks,theContractState.allocated_blocks_array_size);
   // err_printf("Free cmp\n");
 }
 
@@ -964,7 +964,7 @@ static void appendToProofArray(ProofBlock* proofList, ProofBlock proof,
       newSaverArray[i] = proofList[i];
     }
     free(proofList);
-    proofList=NULL;
+    // proofList=NULL;
     proofList = newSaverArray;
     *allocated_proof_array_size = new_allocated_saver_array_size;
   }
@@ -1052,13 +1052,17 @@ char* HTTPrequest(char* path, int n_path) {
   const char split[] = "\r\n";
   int index = 0;
   char* res;
+
+  // err_printf("res:%s\n",response);
   token = strtok(response, split);
+  
 
   while (token != NULL) {
     printf("%d: %s\n", index++, token);
     if (index - 1 == 12) {
       printf("size of token: %d\n", strlen(token));
       res = malloc(strlen(token));
+      memset(res,0,sizeof(res));
       memcpy(res, token, strlen(token));
     }
     token = strtok(NULL, split);
@@ -1236,12 +1240,12 @@ int validateProof(char* proofCID, char* challengeCID, Block* block) {
   if(challenge) destroy_cpor_challenge(challenge);
   if(proof) destroy_cpor_proof(proof);
   if(t) destroy_cpor_t(t);
-  if(proof_ret) free(proof_ret);
-  if(challenge_ret) free(challenge_ret);
-  if(tfile_ret) free(tfile_ret);
-  if(proof_hex) free(proof_hex);
-  if(challenge_hex) free(challenge_hex);
-  if(tfile_hex) free(tfile_hex);
+  if(proof_ret) sfree(proof_ret,sizeof(proof_ret));
+  if(challenge_ret) sfree(challenge_ret,sizeof(challenge_ret));
+  if(tfile_ret) sfree(tfile_ret,sizeof(tfile_ret));
+  if(proof_hex) sfree(proof_hex,sizeof(proof_hex));
+  if(challenge_hex) sfree(challenge_hex,sizeof(challenge_hex));
+  if(tfile_hex) sfree(tfile_hex,sizeof(tfile_hex));
   err_printf("Validate Proof: %d\n", ret);
   return ret;
 }
@@ -1278,15 +1282,22 @@ int findBlockSaver(int index, int index_IpfsNode) {
 
 Block* createBlock() {
   Block* nowBlock = malloc(sizeof(Block));
+
   nowBlock->nBlockSavers = 0;
   nowBlock->num_proof = 0;
   nowBlock->allocated_array_proof_size = INIT_PROOF_ARRAY_SIZE;
   nowBlock->num_proof = 0;
-  nowBlock->array_proof_block =
+
+  
+  ProofBlock* newProofBlock = 
       malloc(sizeof(ProofBlock) * nowBlock->allocated_array_proof_size);
+
+  nowBlock->array_proof_block = newProofBlock;
+
   nowBlock->allocated_blockSavers_size = INIT_IPFSNODE_ARRAY_SIZE;
   nowBlock->blockSavers =
       malloc(sizeof(int) * nowBlock->allocated_blockSavers_size);
+
   return nowBlock;
 }
 
