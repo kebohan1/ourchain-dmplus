@@ -663,7 +663,7 @@ static unsigned int compute_contract_size() {
       sizeof(Block) * theContractState.allocated_blocks_array_size;
   unsigned int sz_proofs_array = 0;
   unsigned int sz_savers_array = 0;
-  for (int i = 0; i < theContractState.num_blocks; ++i) {
+  for (int i = 0; i <= theContractState.num_blocks; ++i) {
     sz_proofs_array +=
         aBlocks[i].allocated_array_proof_size * sizeof(ProofBlock);
     sz_savers_array += aBlocks[i].allocated_blockSavers_size * sizeof(int);
