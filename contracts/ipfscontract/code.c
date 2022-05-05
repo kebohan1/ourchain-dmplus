@@ -558,7 +558,7 @@ static unsigned int writeState() {
 
   // free(buff);
   releaseState();
-  // free(buff);
+  free(buff);
   return offset;
 }
 
