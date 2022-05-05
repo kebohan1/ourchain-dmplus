@@ -1233,9 +1233,9 @@ int validateProof(char* proofCID, char* challengeCID, Block* block) {
   CPOR_t* t = UnserializeT(StrHex(tfile_ret, strlen(tfile_ret)));
   int ret = cpor_verify_proof(challenge->global, proof, challenge, t->k_prf,
                               t->alpha);
-  destroy_cpor_challenge(challenge);
-  destroy_cpor_proof(proof);
-  destroy_cpor_t(t);
+  if(challenge) destroy_cpor_challenge(challenge);
+  if(proof) destroy_cpor_proof(proof);
+  if(t) destroy_cpor_t(t);
   if(proof_ret) free(proof_ret);
   if(challenge_ret) free(challenge_ret);
   if(tfile_ret) free(tfile_ret);
