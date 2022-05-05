@@ -126,9 +126,10 @@ static int call_rt(const uint256& contract, const std::vector<std::string>& args
         if (flag == BYTE_READ_STATE) { // read state
             fwrite((void*)&state[0], state.size(), 1, pipe_state_write);
         } else if (flag > 0) { // write state
-            state.resize(flag);
-            int ret = fread((void*)&state[0], state.size(), 1, pipe_state_read);
-            assert(ret >= 0);
+            // state.resize(flag);
+            // LogPrintf("Flag=%d\n",flag);
+            // int ret = fread((void*)&state[0], state.size(), 1, pipe_state_read);
+            // assert(ret >= 0);
         } else if (flag == BYTE_SEND_TO_ADDRESS) { // send to address
             std::string addr_to(40, '\0');
             CAmount amount;

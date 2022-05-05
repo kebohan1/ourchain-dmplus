@@ -537,19 +537,30 @@ static unsigned int writeState() {
      array and then call only one time state_write()
   */
 
-  // unsigned char buff[sizeof(int) + sizeof(char) * theContractState.size_contract];
-  unsigned char* buff = malloc(sizeof(int) + sizeof(char) * theContractState.size_contract);
+  unsigned char buff[sizeof(int) + sizeof(char) * theContractState.size_contract];
+  // unsigned char* buff = malloc(sizeof(int) + sizeof(char) * theContractState.size_contract);
   unsigned int offset = 0;
 
   memcpy(buff, &theContractState.size_contract, sizeof(int));
   offset += sizeof(int);
-
+  err_printf("Start writing State\n");
   offset += writeContractStateToState(buff, offset);
+  err_printf("writeContractStateToState\n");
+
   offset += writeTokenToState(buff, offset);
+  err_printf("writeTokenToState\n");
+
   offset += writeAccountArrayToState(buff, offset);
+  err_printf("writeAccountArrayToState\n");
+
   offset += writeAllowanceArrayToState(buff, offset);
+  err_printf("writeAllowanceArrayToState\n");
+
   offset += writeBlocksArray(buff, offset);
+  err_printf("writeBlocksArray\n");
+
   offset += writeIpfsNodeArray(buff, offset);
+  err_printf("writeIpfsNodeArray\n");
 
   err_printf("offset: %d, real size: %d\n", offset,
              theContractState.size_contract);
@@ -558,7 +569,7 @@ static unsigned int writeState() {
 
   // free(buff);
   releaseState();
-  free(buff);
+  // free(buff);
   return offset;
 }
 
@@ -1671,7 +1682,7 @@ int contract_main(int argc, char** argv) {
         if (ret > 0) {
           // out_clear();
           out_printf("SaveBlocks: %d,%s,%s,%s,%d\n", ret, argv[2], argv[3],
-                     argv[4], time(NULL));
+                     argv[i], time(NULL));
         }
       }
 
