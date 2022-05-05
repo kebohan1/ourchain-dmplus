@@ -1236,12 +1236,12 @@ int validateProof(char* proofCID, char* challengeCID, Block* block) {
   destroy_cpor_challenge(challenge);
   destroy_cpor_proof(proof);
   destroy_cpor_t(t);
-  free(proof_ret);
-  free(challenge_ret);
-  free(tfile_ret);
-  free(proof_hex);
-  free(challenge_hex);
-  free(tfile_hex);
+  if(proof_ret) free(proof_ret);
+  if(challenge_ret) free(challenge_ret);
+  if(tfile_ret) free(tfile_ret);
+  if(proof_hex) free(proof_hex);
+  if(challenge_hex) free(challenge_hex);
+  if(tfile_hex) free(tfile_hex);
   err_printf("Validate Proof: %d\n", ret);
   return ret;
 }
