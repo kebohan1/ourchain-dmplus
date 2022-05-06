@@ -326,38 +326,39 @@ bool CBlockContractManager::deployContract(std::vector<CStorageMessage>& vDeploy
 }
 
 
-void CBlockContractManager::receiveContract(IpfsContract& contract)
+void CBlockContractManager::receiveContract(Contract contract)
 {
     LOCK(cs_main);
 
     LogPrintf("[recieve contract]: memory monitoring up:%d\n",getValue());
+    IpfsContract ipfsContract(contract);
     // std::cout << "Recieve a contract~" << std::endl;
-    if (vStorageContract.find(contract.getAddress()) != vStorageContract.end()) {
-        std::map<uint256, StorageContract>::iterator iter = vStorageContract.find(contract.getAddress());
+    if (vStorageContract.find(contract.address) != vStorageContract.end()) {
+        std::map<uint256, StorageContract>::iterator iter = vStorageContract.find(contract.address);
         // StorageContract &sContract = vStorageContract.find(contract.getAddress())->second;
         // LogPrintf("local storage size: %d, contract: %d\n", iter->second.vIPFSNode.size(), contract.theContractState.num_ipfsnode);
         // TODO: This position has core dump several times, must repair asap.
-        if (contract.theContractState.num_ipfsnode > iter->second.vIPFSNode.size()) {
-            for (int i = 0; i < contract.theContractState.num_ipfsnode; ++i) {
-                if (iter->second.vIPFSNode.find(contract.aIpfsNode[i].address) == iter->second.vIPFSNode.end()) {
+        if (ipfsContract.theContractState.num_ipfsnode > iter->second.vIPFSNode.size()) {
+            for (int i = 0; i < ipfsContract.theContractState.num_ipfsnode; ++i) {
+                if (iter->second.vIPFSNode.find(ipfsContract.aIpfsNode[i].address) == iter->second.vIPFSNode.end()) {
                     CIPFSNode ipfsNode;
-                    ipfsNode.pubKey = contract.aIpfsNode[i].address;
+                    ipfsNode.pubKey = ipfsContract.aIpfsNode[i].address;
                     LogPrintf("Pubkey: %s\n", ipfsNode.pubKey);
-                    ipfsNode.ip = contract.aIpfsNode[i].ip;
+                    ipfsNode.ip = ipfsContract.aIpfsNode[i].ip;
                     iter->second.vIPFSNode.insert(std::pair<std::string, CIPFSNode>(ipfsNode.pubKey, ipfsNode));
                 }
             }
         }
 
-        if (contract.getArgs()[0] == "save_block") {
+        if (ipfsContract.getArgs()[0] == "save_block") {
             std::fstream csvStream;
             fs::path csvPath = GetDataDir() / "upload.csv";
             csvStream.open(csvPath.string(), ios::app);
             // std::cout << "Proof started!" <<std::endl;
             ReadKey();
-            if (vColdBlock.find(uint256S(contract.getArgs()[1].c_str())) != vColdBlock.end()) {
+            if (vColdBlock.find(uint256S(ipfsContract.getArgs()[1].c_str())) != vColdBlock.end()) {
                 // LogPrintf("Core dump prevent 1\n");
-                std::map<uint256, CBlockEach>::iterator blockIter = vColdBlock.find(uint256S(contract.getArgs()[1].c_str()));
+                std::map<uint256, CBlockEach>::iterator blockIter = vColdBlock.find(uint256S(ipfsContract.getArgs()[1].c_str()));
                 ;
 
                 // To store the proof state
@@ -370,22 +371,22 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
                  * calculated. So user have to cat both of them to calculate and compare.
                  *
                  */
-                if (contract.getArgs().size() > 7) {
-                    if (blockIter->second.tfileCID != contract.getArgs()[5]) {
-                        CPOR_t* t = UnserializeT(StrHex(GetFromIPFS(contract.getArgs()[5])));
-                        CPOR_challenge* challenge = UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[6])));
-                        CPOR_proof* proof = UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[4])));
+                if (ipfsContract.getArgs().size() > 7) {
+                    if (blockIter->second.tfileCID != ipfsContract.getArgs()[5]) {
+                        CPOR_t* t = UnserializeT(StrHex(GetFromIPFS(ipfsContract.getArgs()[5])));
+                        CPOR_challenge* challenge = UnserializeChallenge(StrHex(GetFromIPFS(ipfsContract.getArgs()[6])));
+                        CPOR_proof* proof = UnserializeProof(StrHex(GetFromIPFS(ipfsContract.getArgs()[4])));
                         ret = cpor_verify_proof(challenge->global,
                             proof,
                             challenge,
                             t->k_prf,
                             t->alpha);
                         if (ret) {
-                            fs::path tfilepath = GetDataDir() / "cpor" / "Tfiles" / contract.getAddress().ToString().append(".t");
+                            fs::path tfilepath = GetDataDir() / "cpor" / "Tfiles" / ipfsContract.getAddress().ToString().append(".t");
                             if (fs::exists(tfilepath)) fs::remove(tfilepath);
                             FILE* tfile = fsbridge::fopen(tfilepath, "w");
                             write_cpor_t_without_key(t, tfile);
-                            blockIter->second.tfileCID = contract.getArgs()[5];
+                            blockIter->second.tfileCID = ipfsContract.getArgs()[5];
                             fclose(tfile);
                         }
                         destroy_cpor_challenge(challenge);
@@ -393,8 +394,8 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
                         destroy_cpor_t(t);
                     } else {
                         ret = cpor_verify_file(blockIter->second.hash.ToString(),
-                            UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[6]))),
-                            UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[4]))),
+                            UnserializeChallenge(StrHex(GetFromIPFS(ipfsContract.getArgs()[6]))),
+                            UnserializeProof(StrHex(GetFromIPFS(ipfsContract.getArgs()[4]))),
                             pkey);
                     }
                 }
@@ -414,9 +415,9 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
             } else {
                 // LogPrintf("Core dump prevent 2\n");
                 CBlockEach newBlock;
-                CPOR_t* t = UnserializeT(StrHex(GetFromIPFS(contract.getArgs()[5])));
-                CPOR_challenge* challenge = UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[6])));
-                CPOR_proof* proof = UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[4])));
+                CPOR_t* t = UnserializeT(StrHex(GetFromIPFS(ipfsContract.getArgs()[5])));
+                CPOR_challenge* challenge = UnserializeChallenge(StrHex(GetFromIPFS(ipfsContract.getArgs()[6])));
+                CPOR_proof* proof = UnserializeProof(StrHex(GetFromIPFS(ipfsContract.getArgs()[4])));
                 int ret = cpor_verify_proof(challenge->global,
                     proof,
                     challenge,
@@ -424,13 +425,13 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
                     t->alpha);
                 if (ret) {
                     // TODO 0422: If user didn't push this file to smart contract but recv set push and ignore to upload
-                    fs::path tfilepath = GetDataDir() / "cpor" / "Tfiles" / contract.getAddress().ToString().append(".t");
+                    fs::path tfilepath = GetDataDir() / "cpor" / "Tfiles" / ipfsContract.getAddress().ToString().append(".t");
                     if (fs::exists(tfilepath)) fs::remove(tfilepath);
                     FILE* tfile = fsbridge::fopen(tfilepath, "w");
                     write_cpor_t_without_key(t, tfile);
                     fclose(tfile);
-                    newBlock.tfileCID = contract.getArgs()[5];
-                    newBlock.hash = uint256S(contract.getArgs()[1].c_str());
+                    newBlock.tfileCID = ipfsContract.getArgs()[5];
+                    newBlock.hash = uint256S(ipfsContract.getArgs()[1].c_str());
                     vColdBlock.insert(std::pair<uint256, CBlockEach>(newBlock.hash, newBlock));
                     removeBlock(newBlock.hash.ToString());
                 }
@@ -440,17 +441,17 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
 
             csvStream.close();
         }
-        if (contract.getArgs()[0] == "save_blocks") {
+        if (ipfsContract.getArgs()[0] == "save_blocks") {
             std::fstream csvStream;
             fs::path csvPath = GetDataDir() / "upload.csv";
             csvStream.open(csvPath.string(), ios::app);
             // std::cout << "Proof started!" <<std::endl;
             ReadKey();
 
-            for (int i = 3; i + 6 < contract.getArgs().size(); i += 7) {
-                if (vColdBlock.find(uint256S(contract.getArgs()[i].c_str())) != vColdBlock.end()) {
-                    // LogPrintf("Save blocks handle:%s\n", contract.getArgs()[i].c_str());
-                    std::map<uint256, CBlockEach>::iterator blockIter = vColdBlock.find(uint256S(contract.getArgs()[i].c_str()));
+            for (int i = 3; i + 6 < ipfsContract.getArgs().size(); i += 7) {
+                if (vColdBlock.find(uint256S(ipfsContract.getArgs()[i].c_str())) != vColdBlock.end()) {
+                    // LogPrintf("Save blocks handle:%s\n", ipfsContract.getArgs()[i].c_str());
+                    std::map<uint256, CBlockEach>::iterator blockIter = vColdBlock.find(uint256S(ipfsContract.getArgs()[i].c_str()));
                     ;
 
                     // To store the proof state
@@ -465,10 +466,10 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
                      */
 
 
-                    if (blockIter->second.tfileCID != contract.getArgs()[i + 3]) {
-                        CPOR_t* t = UnserializeT(StrHex(GetFromIPFS(contract.getArgs()[i + 3])));
-                        CPOR_challenge* challenge = UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[i + 4])));
-                        CPOR_proof* proof = UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[i + 2])));
+                    if (blockIter->second.tfileCID != ipfsContract.getArgs()[i + 3]) {
+                        CPOR_t* t = UnserializeT(StrHex(GetFromIPFS(ipfsContract.getArgs()[i + 3])));
+                        CPOR_challenge* challenge = UnserializeChallenge(StrHex(GetFromIPFS(ipfsContract.getArgs()[i + 4])));
+                        CPOR_proof* proof = UnserializeProof(StrHex(GetFromIPFS(ipfsContract.getArgs()[i + 2])));
                         ret = cpor_verify_proof(challenge->global,
                             proof,
                             challenge,
@@ -476,11 +477,11 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
                             t->alpha);
                         if (ret) {
                             // LogPrintf("The Tfile is not match... update\n");
-                            fs::path tfilepath = GetDataDir() / "cpor" / "Tfiles" / contract.getAddress().ToString().append(".t");
+                            fs::path tfilepath = GetDataDir() / "cpor" / "Tfiles" / ipfsContract.getAddress().ToString().append(".t");
                             if (fs::exists(tfilepath)) fs::remove(tfilepath);
                             FILE* tfile = fsbridge::fopen(tfilepath, "w");
                             write_cpor_t_without_key(t, tfile);
-                            blockIter->second.tfileCID = contract.getArgs()[i + 3];
+                            blockIter->second.tfileCID = ipfsContract.getArgs()[i + 3];
                             fclose(tfile);
                         }
                         destroy_cpor_challenge(challenge);
@@ -488,8 +489,8 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
                         destroy_cpor_t(t);
                     } else {
                         ret = cpor_verify_file(blockIter->second.hash.ToString(),
-                            UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[i + 4]))),
-                            UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[i + 2]))),
+                            UnserializeChallenge(StrHex(GetFromIPFS(ipfsContract.getArgs()[i + 4]))),
+                            UnserializeProof(StrHex(GetFromIPFS(ipfsContract.getArgs()[i + 2]))),
                             pkey);
                     }
 
@@ -513,14 +514,14 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
         }
 
 
-        if (contract.getArgs()[0] == "proof_block") {
+        if (ipfsContract.getArgs()[0] == "proof_block") {
             std::fstream csvStream;
             fs::path csvPath = GetDataDir() / "challenge.csv";
             csvStream.open(csvPath.string(), ios::app);
             // std::cout << "Proof Block started!" <<std::endl;
             ReadKey();
-            if (vColdBlock.find(uint256S(contract.getArgs()[1].c_str())) != vColdBlock.end()) {
-                CBlockEach coldblock = vColdBlock.find(uint256S(contract.getArgs()[1].c_str()))->second;
+            if (vColdBlock.find(uint256S(ipfsContract.getArgs()[1].c_str())) != vColdBlock.end()) {
+                CBlockEach coldblock = vColdBlock.find(uint256S(ipfsContract.getArgs()[1].c_str()))->second;
                 // To store the proof state
                 int ret = -1;
                 /**
@@ -534,8 +535,8 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
                 auto proofTimeStart = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
                 csvStream << proofTimeStart << "," << coldblock.hash.ToString() << ",1";
                 ret = cpor_verify_file(coldblock.hash.ToString(),
-                    UnserializeChallenge(StrHex(GetFromIPFS(contract.getArgs()[4]))),
-                    UnserializeProof(StrHex(GetFromIPFS(contract.getArgs()[3]))),
+                    UnserializeChallenge(StrHex(GetFromIPFS(ipfsContract.getArgs()[4]))),
+                    UnserializeProof(StrHex(GetFromIPFS(ipfsContract.getArgs()[3]))),
                     pkey);
 
 
@@ -554,15 +555,15 @@ void CBlockContractManager::receiveContract(IpfsContract& contract)
         }
     } else {
         StorageContract newS;
-        for (int i = 0; i < contract.theContractState.num_ipfsnode; ++i) {
+        for (int i = 0; i < ipfsContract.theContractState.num_ipfsnode; ++i) {
             CIPFSNode ipfsNode;
-            ipfsNode.pubKey = contract.aIpfsNode[i].address;
+            ipfsNode.pubKey = ipfsContract.aIpfsNode[i].address;
             LogPrintf("Pubkey: %s\n", ipfsNode.pubKey);
-            ipfsNode.ip = contract.aIpfsNode[i].ip;
+            ipfsNode.ip = ipfsContract.aIpfsNode[i].ip;
             newS.vIPFSNode.insert(std::pair<std::string, CIPFSNode>(ipfsNode.pubKey, ipfsNode));
         }
         LogPrintf("Insert new contract\n");
-        newS.hash = contract.getAddress();
+        newS.hash = ipfsContract.getAddress();
         vStorageContract.insert(std::pair<uint256, StorageContract>(newS.hash, newS));
     }
     LogPrintf("[recieve contract]: memory monitoring down:%d\n",getValue());
@@ -676,6 +677,25 @@ int CBlockContractManager::ReadKey()
     return 1;
 }
 
+std::vector<uint256> GetSavedBlockFromIpfsContract(Contract contract, std::string pubkey){
+    LOCK(cs_main);
+
+    IpfsContract ipfscontract(contract);
+    std::vector<uint256> result = ipfscontract.getSavedBlock(pubkey);
+    // ipfscontract.~IpfsContract();
+    return result;
+}
+
+Block* FindBlockFromIpfsContract(Contract contract,std::string hash){
+    LOCK(cs_main);
+
+    IpfsContract ipfscontract(contract);
+    Block* block = ipfscontract.findBlock(hash);
+    return block;
+
+}
+
+
 void CBlockContractManager::challengeBlock(int nHeight)
 {
     LOCK(cs_main);
@@ -698,13 +718,11 @@ void CBlockContractManager::challengeBlock(int nHeight)
             if (Itemcontract.second.vIPFSNode.size() != 0) {
                 Contract ccontract;
                 ccontract.address = Itemcontract.second.hash;
-                IpfsContract ipfscontract(ccontract);
-
-                LogPrintf("IPFS contract num_ipfsnode:%d\n", ipfscontract.theContractState.num_ipfsnode);
+                
                 int nChallengeblocks = gArgs.GetArg("-challengeblocks",CHALLENGE_BLOCKS);
                 std::vector<uint256> blocks;
                 for (auto& ipfs : Itemcontract.second.vIPFSNode) {
-                    blocks = ipfscontract.getSavedBlock(ipfs.second.pubKey);
+                    blocks = GetSavedBlockFromIpfsContract(ccontract,ipfs.second.pubKey);
                     LogPrintf("Output blocks size: %d\n", blocks.size());
                     if (blocks.size() == 0){
                         blocks.clear();
@@ -717,7 +735,7 @@ void CBlockContractManager::challengeBlock(int nHeight)
                     for (int i = 0; i < rand_times; ++i) {
                         LogPrintf("Challenge times:%d\n", i);
                         int rand_num = rand() % blocks.size();
-                        block = ipfscontract.findBlock(blocks[rand_num].ToString());
+                        block = FindBlockFromIpfsContract(ccontract,blocks[rand_num].ToString());
                         CPOR_challenge* pchallenge;
                         LogPrintf("TFILECID: %s\n",block->tfileCID);
                         if(block == nullptr) continue;

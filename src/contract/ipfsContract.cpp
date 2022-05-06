@@ -155,7 +155,7 @@ Block* IpfsContract::findBlock(std::string hash){
 
 void IpfsContract::freeAccountArray(){
   // LogPrintf("free globalAccountArray\n");
-  if(globalAccountArray) free(globalAccountArray);
+  if(globalAccountArray) free(globalAccountArray); globalAccountArray = NULL;
 }
 
 void IpfsContract::freeAllowanceArray(){
@@ -163,25 +163,33 @@ void IpfsContract::freeAllowanceArray(){
 // LogPrintf("free globalAllowanceArray item\n");
   for (int i = 0; i < theContractState.num_allowance; i++) {
     
-    if(globalAllowanceArray[i].records) free(globalAllowanceArray[i].records);
+    if(globalAllowanceArray[i].records) free(globalAllowanceArray[i].records); globalAllowanceArray[i].records = NULL;
   }
   // LogPrintf("free globalAllowanceArray\n");
-  if(globalAllowanceArray) free(globalAllowanceArray);
+  if(globalAllowanceArray) free(globalAllowanceArray); globalAllowanceArray = NULL;
   
 }
 
 void IpfsContract::freeBlocksArray(){
   // LogPrintf("free blocks item\n");
   for (int i = 0; i < theContractState.num_blocks; i++) {
+
     free(aBlocks[i].blockSavers);
-    if(aBlocks[i].array_proof_block) free(aBlocks[i].array_proof_block);
+    aBlocks[i].blockSavers =NULL;
+    if(aBlocks[i].array_proof_block){
+      free(aBlocks[i].array_proof_block);
+      aBlocks[i].array_proof_block = NULL;
+    }
   }
   // LogPrintf("free blocks\n");
-  if(aBlocks) free(aBlocks);
+  if(aBlocks) free(aBlocks); aBlocks = NULL;
 }
 
 void IpfsContract::freeIpfsNodeArray(){
   // LogPrintf("free ipfs\n");
 
-  if(aIpfsNode) free(aIpfsNode);
+  if(aIpfsNode){
+    free(aIpfsNode);
+    aIpfsNode =nullptr;
+  } 
 }
