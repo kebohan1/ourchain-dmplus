@@ -234,8 +234,7 @@ bool ProcessContract(const Contract& contract, std::vector<CTxOut>& vTxOut, std:
 
     // TODO: Append Contract and state into cmanager
 
-    IpfsContract ipfsContract(contract);
-    cmanager.receiveContract(ipfsContract);
+    cmanager.receiveContract(contract);
 
     CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath, "wb"), SER_DISK, CLIENT_VERSION);
     size_t nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
