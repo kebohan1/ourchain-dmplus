@@ -449,6 +449,7 @@ void CBlockContractManager::receiveContract(Contract contract)
             ReadKey();
 
             for (int i = 3; i + 6 < ipfsContract.getArgs().size(); i += 7) {
+                LogPrintf("[recieve contract]: Evaluate:%d\n",getValue());
                 if (vColdBlock.find(uint256S(ipfsContract.getArgs()[i].c_str())) != vColdBlock.end()) {
                     // LogPrintf("Save blocks handle:%s\n", ipfsContract.getArgs()[i].c_str());
                     std::map<uint256, CBlockEach>::iterator blockIter = vColdBlock.find(uint256S(ipfsContract.getArgs()[i].c_str()));
@@ -566,6 +567,7 @@ void CBlockContractManager::receiveContract(Contract contract)
         newS.hash = ipfsContract.getAddress();
         vStorageContract.insert(std::pair<uint256, StorageContract>(newS.hash, newS));
     }
+    ipfsContract.~IpfsContract();
     LogPrintf("[recieve contract]: memory monitoring down:%d\n",getValue());
 
 }
