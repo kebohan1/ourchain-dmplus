@@ -567,7 +567,7 @@ void CBlockContractManager::receiveContract(Contract contract)
         newS.hash = ipfsContract.getAddress();
         vStorageContract.insert(std::pair<uint256, StorageContract>(newS.hash, newS));
     }
-    ipfsContract.~IpfsContract();
+    // ipfsContract.~IpfsContract();
     LogPrintf("[recieve contract]: memory monitoring down:%d\n",getValue());
 
 }
