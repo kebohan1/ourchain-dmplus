@@ -338,6 +338,8 @@ void CBlockContractManager::receiveContract(Contract contract)
         // StorageContract &sContract = vStorageContract.find(contract.getAddress())->second;
         // LogPrintf("local storage size: %d, contract: %d\n", iter->second.vIPFSNode.size(), contract.theContractState.num_ipfsnode);
         // TODO: This position has core dump several times, must repair asap.
+        LogPrintf("[recieve contract]: Before copy ipfsnode:%d\n",getValue());
+
         if (ipfsContract.theContractState.num_ipfsnode > iter->second.vIPFSNode.size()) {
             for (int i = 0; i < ipfsContract.theContractState.num_ipfsnode; ++i) {
                 if (iter->second.vIPFSNode.find(ipfsContract.aIpfsNode[i].address) == iter->second.vIPFSNode.end()) {
@@ -349,6 +351,7 @@ void CBlockContractManager::receiveContract(Contract contract)
                 }
             }
         }
+        LogPrintf("[recieve contract]: Before doing works Evaluate:%d\n",getValue());
 
         if (ipfsContract.getArgs()[0] == "save_block") {
             std::fstream csvStream;
@@ -449,7 +452,7 @@ void CBlockContractManager::receiveContract(Contract contract)
             ReadKey();
 
             for (int i = 3; i + 6 < ipfsContract.getArgs().size(); i += 7) {
-                LogPrintf("[recieve contract]: Evaluate:%d\n",getValue());
+                LogPrintf("[recieve contract]/[save_blocks]: Evaluate:%d\n",getValue());
                 if (vColdBlock.find(uint256S(ipfsContract.getArgs()[i].c_str())) != vColdBlock.end()) {
                     // LogPrintf("Save blocks handle:%s\n", ipfsContract.getArgs()[i].c_str());
                     std::map<uint256, CBlockEach>::iterator blockIter = vColdBlock.find(uint256S(ipfsContract.getArgs()[i].c_str()));
