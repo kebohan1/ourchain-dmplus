@@ -19,6 +19,7 @@
 #include <netbase.h>
 #include <netmessagemaker.h>
 #include <storage/ipfs_interface.h>
+#include <memusage.h>
 
 using namespace std;
 using std::chrono::duration_cast;
@@ -332,6 +333,7 @@ void CBlockContractManager::receiveContract(Contract contract)
 
     LogPrintf("[recieve contract]: memory monitoring up:%d\n",getValue());
     IpfsContract ipfsContract(contract);
+    LogPrintf("IpfsContract memory Usage:%u\n",(sizeof(ipfsContract) + ipfsContract.compute_contract_size()) / 1000);
     // std::cout << "Recieve a contract~" << std::endl;
     if (vStorageContract.find(contract.address) != vStorageContract.end()) {
         std::map<uint256, StorageContract>::iterator iter = vStorageContract.find(contract.address);
