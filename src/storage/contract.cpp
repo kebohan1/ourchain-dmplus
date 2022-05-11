@@ -133,10 +133,10 @@ std::vector<CStorageMessage> CBlockContractManager::pushColdPool()
         fs::create_directory(path);
         fs::path TagFile = path / "Tags" / item.hash.ToString().append(".tag");
         fs::path TFile = path / "Tfiles" / item.hash.ToString().append(".t");
-        LogPrintf("hash: %s\n", item.hash.ToString());
+        // LogPrintf("hash: %s\n", item.hash.ToString());
         if (!fs::exists(TagFile)) {
             int ret = local_cpor_tag_file(str, item.hash, pkey);
-            LogPrintf("CPOR TagFile: %d\n",ret);
+            // LogPrintf("CPOR TagFile: %d\n",ret);
             auto tagtime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
             csvStream << tagtime << "," << item.hash.ToString() << ",1\n";
         }
