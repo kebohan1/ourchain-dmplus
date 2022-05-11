@@ -131,3 +131,4 @@ bitcoind
 
 #contract
 src/contract/ourcontract-rt
+src/ourcontract-rt
