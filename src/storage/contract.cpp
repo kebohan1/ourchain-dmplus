@@ -135,7 +135,8 @@ std::vector<CStorageMessage> CBlockContractManager::pushColdPool()
         fs::path TFile = path / "Tfiles" / item.hash.ToString().append(".t");
         LogPrintf("hash: %s\n", item.hash.ToString());
         if (!fs::exists(TagFile)) {
-            local_cpor_tag_file(str, item.hash, pkey);
+            int ret = local_cpor_tag_file(str, item.hash, pkey);
+            LogPrintf("CPOR TagFile: %d\n",ret);
             auto tagtime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
             csvStream << tagtime << "," << item.hash.ToString() << ",1\n";
         }

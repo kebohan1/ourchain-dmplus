@@ -253,6 +253,7 @@ std::vector<unsigned char> readFileToUnsignedChar(const std::string & path) {
     res = new unsigned char[sb.st_size];
     
     fread(res, sb.st_size,1 ,input_file);
+    fclose(input_file);
     return std::vector<unsigned char>(res, res +  sb.st_size);;
 }
 
