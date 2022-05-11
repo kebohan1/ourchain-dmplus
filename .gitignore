@@ -129,6 +129,3 @@ db4/
 *.plist
 bitcoind
 
-#contract
-src/contract/ourcontract-rt
-src/ourcontract-rt
