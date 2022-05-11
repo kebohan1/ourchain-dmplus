@@ -2509,6 +2509,15 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     nTimeCallbacks += nTime6 - nTime5;
     LogPrint(BCLog::BENCH, "    - Callbacks: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime6 - nTime5), nTimeCallbacks * MICRO, nTimeCallbacks * MILLI / nBlocksTotal);
 
+    /**
+     * @brief Throughputs testing output to the csv
+     * 
+     */
+    fs::path csvPath = GetDataDir() / "throughputs.csv";
+    std::fstream csvStream;
+    csvStream.open(csvPath.string(), ios::app);
+    csvStream << nTimeStart << "," << nBlocksTotal << "," << block.vtx.size() << "\n";
+
     return true;
 }
 

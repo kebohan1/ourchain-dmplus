@@ -128,3 +128,6 @@ db4/
 # clang-check
 *.plist
 bitcoind
+
+#contract
+src/contract/ourcontract-rt
