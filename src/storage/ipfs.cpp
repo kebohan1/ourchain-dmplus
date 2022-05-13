@@ -160,7 +160,7 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
     if (RegisterKey.empty()) return;
     CWallet* const pwallet = getWallet();
     CTxDestination dest = getDest(pwallet);
-    // EnsureWalletIsUnlocked(pwallet);
+    EnsureWalletIsUnlocked(pwallet);
     if (pwallet->IsLocked()) return;
 
     contract.args.push_back("save_blocks");
