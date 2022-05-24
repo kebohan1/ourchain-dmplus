@@ -1437,45 +1437,42 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
     auto readTimeStart = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     csvStream << readTimeStart << "," << pos.hash.ToString() << ",0\n";
     FILE* blockfile = OpenNewBlockFile(pos, true);
+    fs::path managerpath = GetCPORDir() / "cmanager.dat";
+    CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
+    CBlockContractManager cmanager{};
+    if (!cmanager.isInit()) {
+        if (cfilemanager.IsNull()) {
+            // LogPrintf("cmanager.dat not found... create 1\n");
+            cmanager.InitParams();
+            cmanager.InitKey();
+            cmanager.setInit();
+        } else {
+            LogPrintf("cmanager.dat serializing\n");
+            cfilemanager >> cmanager;
+        }
+    }
+    
+    CBlock ipblock;
     if (blockfile == nullptr) {
-        CBlockContractManager cmanager{};
-        CBlock block;
-        
-            
-            fs::path managerpath = GetCPORDir() / "cmanager.dat";
-            CAutoFile cfilemanager(fsbridge::fopen(managerpath, "rb"), SER_DISK, CLIENT_VERSION);
-            if (!cmanager.isInit()) {
-                if (cfilemanager.IsNull()) {
-                    // LogPrintf("cmanager.dat not found... create 1\n");
-                    cmanager.InitParams();
-                    cmanager.InitKey();
-                    cmanager.setInit();
-                } else {
-                    LogPrintf("cmanager.dat serializing\n");
-                    cfilemanager >> cmanager;
-                }
-            }
         
 
-        cmanager.GetBackFromIPFS(block, pos);
-        if (block.IsNull())
+
+        cmanager.GetBackFromIPFS(ipblock, pos);
+        if (ipblock.IsNull())
             return error("Faile to read block from IPFS");
 
 
         CAutoFile fileout(OpenNewBlockFile(pos), SER_DISK, CLIENT_VERSION);
-        try{
-            fileout << block;
-        } catch(const std::exception& e) {
+        try {
+            fileout << ipblock;
+        } catch (const std::exception& e) {
             return error("%s: Fail to write IPFS block to disk: %s ", __func__, e.what());
         }
+
+
         
-        
-        cmanager.workingSet(block.GetHash(), pos);
-        CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath, "wb"), SER_DISK, CLIENT_VERSION);
-        int nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
-        cfilemanagerOut << cmanager << nSize;
         auto readTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-        csvStream << readTime << "," << block.GetHash().ToString() << ",1C\n";
+        csvStream << readTime << "," << ipblock.GetHash().ToString() << ",1C\n";
         fileout.fclose();
     } else {
         auto readTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
@@ -1505,6 +1502,10 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos, c
     } catch (const std::exception& e) {
         return error("%s: Read from block file failed: %s for %s", __func__, e.what(), pos.ToString());
     }
+    cmanager.workingSet(ipblock.GetHash(), pos);
+    CAutoFile cfilemanagerOut(fsbridge::fopen(managerpath, "wb"), SER_DISK, CLIENT_VERSION);
+    int nSize = GetSerializeSize(cmanager, cfilemanagerOut.GetVersion());
+    cfilemanagerOut << cmanager << nSize;
 
     return true;
 }
@@ -1680,12 +1681,12 @@ CTransactionRef ProcessContractTx(const Contract& cont, CCoinsViewCache& inputs,
     CAmount balance = 0;
     inputs.GetContState(cont.address, cs);
     // cs.state.clear();
-    LogPrintf("State size:%d\n",cs.DynamicMemoryUsage());
+    LogPrintf("State size:%d\n", cs.DynamicMemoryUsage());
     for (const COutPoint& outpoint : cs.coins) {
         mtx.vin.push_back(CTxIn(outpoint));
         balance += inputs.AccessCoin(outpoint).out.nValue;
     }
-    LogPrintf("Memory Usage:%d\n",pcoinsTip->DynamicMemoryUsage());
+    LogPrintf("Memory Usage:%d\n", pcoinsTip->DynamicMemoryUsage());
     if (!ProcessContract(cont, mtx.vout, cs.state, balance, nextContract)) return CTransactionRef();
     // update cont state
     cs.coins.clear();
@@ -2511,7 +2512,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
 
     /**
      * @brief Throughputs testing output to the csv
-     * 
+     *
      */
     fs::path csvPath = GetDataDir() / "throughputs.csv";
     std::fstream csvStream;
