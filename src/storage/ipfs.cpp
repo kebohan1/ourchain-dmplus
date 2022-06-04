@@ -159,7 +159,7 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
     }
 
     vReadySolvingMsg.push_back(msg);
-    ipfsTimeStamp.push_back(getTime()+","+msg.hash.ToString()+",recieve");
+    ipfsTimeStamp.push_back(std::to_string(getTime())+","+msg.hash.ToString()+",recieve");
     int nColdPoolMax = gArgs.GetArg("-coldpool", 29);
     if (vReadySolvingMsg.size() < nColdPoolMax) return;
     if (RegisterKey.empty()) return;
@@ -183,7 +183,7 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
             // free(oldBlock);
             continue;
         }
-        ipfsTimeStamp.push_back(getTime()+","+msg.hash.ToString()+",process_start");
+        ipfsTimeStamp.push_back(std::to_string(getTime())+","+msg.hash.ToString()+",process_start");
         PinIPFS(readymsg.CID);
         PinIPFS(readymsg.TagCID);
         // LogPrintf("IPFS get cmp\n");
@@ -191,11 +191,11 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
         
         
         CPOR_challenge* pchallenge = UnserializeChallenge(StrHex(GetFromIPFS(readymsg.firstChallengeCID)));
-        ipfsTimeStamp.push_back(getTime()+","+msg.hash.ToString()+",create_proof_start");
+        ipfsTimeStamp.push_back(std::to_string(getTime())+","+msg.hash.ToString()+",create_proof_start");
         CPOR_proof* pproof = cpor_prove_file(GetFromIPFS(readymsg.CID),
                                             StrHex(GetFromIPFS(readymsg.TagCID)),
                                             pchallenge);
-        ipfsTimeStamp.push_back(getTime()+","+msg.hash.ToString()+",create_proof_end");
+        ipfsTimeStamp.push_back(std::to_string(getTime())+","+msg.hash.ToString()+",create_proof_end");
         std::string proofCID = AddToIPFS(HexStr(SerializeProof(pproof)));
         // LogPrintf("Serialize IPFS cmp\n");
         // std::cout << "Unserialize CPOR_challenge" << UnserializeChallenge(StrHex(challenge))->I <<std::endl;
@@ -233,7 +233,7 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
     CCoinControl no_coin_control;
     std::string error;
     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
-    auto time = getTime();
+    auto time = std::to_string(getTime());
     for(auto hash : appHash){
         ipfsTimeStamp.push_back(time+","+hash+",contract_end");
     }
@@ -272,7 +272,7 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
     // LogPrintf("Msg size: %d\n", msg.vChallenge.size());
     for (auto& item : msg.vChallenge) {
         // LogPrintf("block hash: %s\n", item.first.ToString());
-        ipfsTimeStamp.push_back(getTime()+","+item.first.ToString()+",start_generating_proof");
+        ipfsTimeStamp.push_back(std::to_string(getTime())+","+item.first.ToString()+",start_generating_proof");
         Block* oldBlock = oldContract.findBlock(item.first.ToString());
         if (oldBlock == nullptr) continue;
         std::string block = GetFromIPFS(oldBlock->CIDHash);
@@ -281,7 +281,7 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
         CPOR_challenge* pchallenge = UnserializeChallenge(StrHex(challenge));
         // LogPrintf("Challenge recieve\n");
         CPOR_proof* pproof = cpor_prove_file(block, StrHex(tag), pchallenge);
-        ipfsTimeStamp.push_back(getTime()+","+item.first.ToString()+",end_generating_proof");
+        ipfsTimeStamp.push_back(std::to_string(getTime())+","+item.first.ToString()+",end_generating_proof");
         std::string proofCID = AddToIPFS(HexStr(SerializeProof(pproof)));
         // LogPrintf("Challenge prove created\n");
 
@@ -309,7 +309,7 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
     auto time  = getTime();
     for(auto hash : appHash){
-        ipfsTimeStamp.push_back(time+","+hash+",contract_end");
+        ipfsTimeStamp.push_back(std::to_string(time)+","+hash+",contract_end");
     }
     fs::path csvPath = GetDataDir() / "ipfsProve.csv";
     std::fstream csvStream;
