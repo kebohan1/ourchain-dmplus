@@ -77,18 +77,18 @@ void IpfsContract::init()
 
     unsigned int count;
 
-    LogPrintf("Start read state\n");
+    // LogPrintf("Start read state\n");
     fs::path stateFile = GetDataDir() / "contracts" / address.ToString() / "state";
     FILE* f = fsbridge::fopen(stateFile, "r");
     // if(!f) nInit=0; return;
-    LogPrintf("Read whole contract size\n");
+    // LogPrintf("Read whole contract size\n");
     fread(&count, sizeof(int), 1, f);
     // state_read(&count, sizeof(int));
-    LogPrintf("Count: %d\n",count);
+    // LogPrintf("Count: %d\n",count);
     unsigned char* buff = new unsigned char[count];
     unsigned int offset = 0;
     // state_read(buff, count);
-    LogPrintf("read buff\n");
+    // LogPrintf("read buff\n");
     fread(buff, count, 1, f);
 
     offset += readContractState(buff, offset);
@@ -99,7 +99,7 @@ void IpfsContract::init()
     offset += readIpfsNodeArray(buff, offset);
 
     if (offset != count) {
-        LogPrintf("Contract Err:offset = %u  count = %u\n", offset, count);
+        // LogPrintf("Contract Err:offset = %u  count = %u\n", offset, count);
     }
     nInit =1;
     fclose(f);
@@ -108,12 +108,12 @@ void IpfsContract::init()
 int IpfsContract::findUser(std::string pubkey){
   int ipfs_index = -1;
 
-  LogPrintf("Inside getSavedBlock\n");
+  // LogPrintf("Inside getSavedBlock\n");
   for(int i = 0; i < theContractState.num_ipfsnode; ++i) {
-    LogPrintf("IPFS address: %s, ipfs in contract: %s\n",aIpfsNode[i].address,pubkey.c_str());
+    // LogPrintf("IPFS address: %s, ipfs in contract: %s\n",aIpfsNode[i].address,pubkey.c_str());
     if(!strcmp(aIpfsNode[i].address,pubkey.c_str())) {
       ipfs_index = i;
-      LogPrintf("Get ipfs index:%d\n",i);
+      // LogPrintf("Get ipfs index:%d\n",i);
       break;
     }
   }
@@ -124,14 +124,14 @@ std::vector<uint256> IpfsContract::getSavedBlock(std::string& pubkey) {
   int ipfs_index = findUser(pubkey);
   std::vector<uint256> vStoredBlock;
   if(ipfs_index == -1) return vStoredBlock;
-  LogPrintf("Contract num blocks:%d\n",theContractState.num_blocks);
+  // LogPrintf("Contract num blocks:%d\n",theContractState.num_blocks);
   for(int i = 0; i < theContractState.num_blocks; ++i) {
-    LogPrintf("Block Saver num:%d\n",aBlocks[i].nBlockSavers);
+    // LogPrintf("Block Saver num:%d\n",aBlocks[i].nBlockSavers);
     for(int j = 0; j < aBlocks[i].nBlockSavers; ++j) {
-      LogPrintf("Block Saver num index:%d\n",aBlocks[i].blockSavers[j]);
+      // LogPrintf("Block Saver num index:%d\n",aBlocks[i].blockSavers[j]);
       if(aBlocks[i].blockSavers[j] == ipfs_index) {
         vStoredBlock.push_back(uint256S(aBlocks[i].merkleRoot)); 
-        LogPrintf("Find Block:%d\n",i); 
+        // LogPrintf("Find Block:%d\n",i); 
         break;
       }
     }

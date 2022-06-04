@@ -72,7 +72,7 @@ void removeBlock(std::string hash)
     fs::path blockPath = GetBlocksDir() / strprintf("blk_%s.dat", hash);
 
     if (fs::exists(blockPath)) {
-        LogPrintf("RM block %s\n", hash);
+        // LogPrintf("RM block %s\n", hash);
         fs::remove(blockPath);
     }
 }
@@ -81,21 +81,17 @@ std::vector<CStorageMessage> CBlockContractManager::pushColdPool()
 {
     LOCK(cs_main);
     std::vector<CStorageMessage> vDeployList;
-    fs::path csvPath = GetDataDir() / "upload.csv";
-    std::fstream csvStream;
-    csvStream.open(csvPath.string(), ios::app);
 
+    std::vector<string> ipfsTimeStamp;
     ReadKey();
 
-    LogPrintf("cold pool size: %d\n", vColdPool.size());
+    // LogPrintf("cold pool size: %d\n", vColdPool.size());
 
     int i = 0;
     int nColdPoolMax = gArgs.GetArg("-coldpool",COLDPOOL_MAX);
     for (auto& item : vColdPool) {
         if (i > nColdPoolMax) break;
-        auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
-        csvStream << newTime << "," << item.hash.ToString() << ",0\n";
         CBlock block;
 
         // Check if there is a block inside coldblock then do not deploy again
@@ -133,12 +129,16 @@ std::vector<CStorageMessage> CBlockContractManager::pushColdPool()
         fs::create_directory(path);
         fs::path TagFile = path / "Tags" / item.hash.ToString().append(".tag");
         fs::path TFile = path / "Tfiles" / item.hash.ToString().append(".t");
-        // LogPrintf("hash: %s\n", item.hash.ToString());
+        // LogPrintf("hash: %s\n", item.hash.ToString());        auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        ipfsTimeStamp.push_back(newTime + "," + item.hash.ToString() + ",deploy_list_process_start\n");
         if (!fs::exists(TagFile)) {
+            auto tagStartTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+            ipfsTimeStamp.push_back(tagStartTime + "," + item.hash.ToString() + ",process_start\n");
             int ret = local_cpor_tag_file(str, item.hash, pkey);
             // LogPrintf("CPOR TagFile: %d\n",ret);
             auto tagtime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-            csvStream << tagtime << "," << item.hash.ToString() << ",1\n";
+            ipfsTimeStamp.push_back(tagtime + "," + item.hash.ToString() + ",process_start\n");
         }
         // LogPrintf("%s starts\n", item.first.ToString());
 
@@ -158,12 +158,19 @@ std::vector<CStorageMessage> CBlockContractManager::pushColdPool()
         message.hash = item.hash;
         
         vDeployList.push_back(message);
+        ipfsTimeStamp.push_back(newTime + "," + item.hash.ToString() + ",deploy_list_process_end\n");
         ++i;
     }
 
     // Find Contract To deploy
     // If yes:
     // std::cout << "deploy" << std::endl;
+    fs::path csvPath = GetDataDir() / "upload.csv";
+    std::fstream csvStream;
+    csvStream.open(csvPath.string(), ios::app);
+    for(auto & writeStr: ipfsTimeStamp){
+        csvStream << writeStr;
+    }
     csvStream.close();
     return vDeployList;
 }
@@ -174,7 +181,7 @@ void CBlockContractManager::automaticColdPool()
     if (vColdPool.size() > nColdPoolMax) {
         std::vector<CStorageMessage> vDeployList = pushColdPool();
         if (vDeployList.size() == 0) return;
-        LogPrintf("ColdPoolcmp\n");
+        // LogPrintf("ColdPoolcmp\n");
         if (deployContract(vDeployList)) {
             vColdPool.erase(vColdPool.begin(), vColdPool.begin() + nColdPoolMax);
         }
@@ -248,7 +255,7 @@ void CBlockContractManager::hotColdClassifier(CBlock* block)
 void CBlockContractManager::GetBackFromIPFS(CBlock& block, FlatFilePos pos)
 {
     if (vColdBlock.find(pos.hash) != vColdBlock.end()) {
-        LogPrintf("Get block from ipfs: CID: %s\n", vColdBlock.find(pos.hash)->second.CID);
+        // LogPrintf("Get block from ipfs: CID: %s\n", vColdBlock.find(pos.hash)->second.CID);
         GetBlockFromIPFS(block, vColdBlock.find(pos.hash)->second.CID);
     }
 }
@@ -259,7 +266,7 @@ static void getNodeStat(std::map<std::string, NodeId>& nodes)
     std::vector<CNodeStats> nodeStats;
     g_connman->GetNodeStats(nodeStats);
     for (auto& node : nodeStats) {
-      LogPrintf("nodeipport: %s\n",node.addr.ToStringIPPort());
+    //   LogPrintf("nodeipport: %s\n",node.addr.ToStringIPPort());
         nodes.insert(std::pair<std::string, NodeId>(node.addr.ToStringIPPort(), node.nodeid));
     }
 }
@@ -267,13 +274,13 @@ static void getNodeStat(std::map<std::string, NodeId>& nodes)
 bool CBlockContractManager::deployContract(std::vector<CStorageMessage>& vDeployList)
 {
     // sort(vStorageContract.begin(), vStorageContract.end(), [](StorageContract& x, StorageContract& y) { return x.nReputation > y.nReputation; });
-    std::fstream csvStream;
-    fs::path csvPath = GetDataDir() / "upload.csv";
-    csvStream.open(csvPath.string(), ios::app);
+    std::vector<string> ipfsTimeStamp;
+    
+
     // Test first contract ipfsvector
 
 
-    std::cout << "Contract Size: " << vStorageContract.size() << std::endl;
+    // std::cout << "Contract Size: " << vStorageContract.size() << std::endl;
     if (vStorageContract.size() == 0) return false;
 
     std::map<std::string, NodeId> nodes;
@@ -281,7 +288,7 @@ bool CBlockContractManager::deployContract(std::vector<CStorageMessage>& vDeploy
     bool flag = false;
 
 
-    LogPrintf("vDeployList size: %d\n", vDeployList.size());
+    // LogPrintf("vDeployList size: %d\n", vDeployList.size());
     for (auto& Itemcontract : vStorageContract) {
         // LogPrintf("vipfsnode: %d\n", Itemcontract.second.vIPFSNode.size());
         if (Itemcontract.second.vIPFSNode.size() != 0) {
@@ -289,7 +296,7 @@ bool CBlockContractManager::deployContract(std::vector<CStorageMessage>& vDeploy
                 // CNode newNode()
                 // std::cout << "discontruct ipfsnode vector" << std::endl;
                 CAddress addrConnect;
-                LogPrintf("ip: %s\n",node.second.ip);
+                // LogPrintf("ip: %s\n",node.second.ip);
                 if (nodes.find(node.second.ip) == nodes.end()) {
                     g_connman->AddNode(node.second.ip);
                     getNodeStat(nodes);
@@ -308,13 +315,18 @@ bool CBlockContractManager::deployContract(std::vector<CStorageMessage>& vDeploy
                         vColdBlock.insert(std::pair<uint256, CBlockEach>(blockEach.hash,blockEach));
                     }
                     auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-                    csvStream << newTime << "," << list.hash.ToString() << ",2\n";
+                    ipfsTimeStamp.push_back(newTime +"," + list.hash.ToString() + ",deploy");
                     flag = true;
                 }
             }
         }
     }
-
+    std::fstream csvStream;
+    fs::path csvPath = GetDataDir() / "upload.csv";
+    csvStream.open(csvPath.string(), ios::app);
+    for(auto & writeStr: ipfsTimeStamp){
+        csvStream << writeStr << std::endl;
+    }
     csvStream.close();
     return flag;
 
@@ -333,16 +345,16 @@ void CBlockContractManager::receiveContract(Contract contract)
 {
     LOCK(cs_main);
 
-    LogPrintf("[recieve contract]: memory monitoring up:%d\n",getValue());
+    // LogPrintf("[recieve contract]: memory monitoring up:%d\n",getValue());
     IpfsContract ipfsContract(contract);
-    LogPrintf("IpfsContract memory Usage:%u\n",(sizeof(ipfsContract) + ipfsContract.compute_contract_size()) / 1000);
+    // LogPrintf("IpfsContract memory Usage:%u\n",(sizeof(ipfsContract) + ipfsContract.compute_contract_size()) / 1000);
     // std::cout << "Recieve a contract~" << std::endl;
     if (vStorageContract.find(contract.address) != vStorageContract.end()) {
         std::map<uint256, StorageContract>::iterator iter = vStorageContract.find(contract.address);
         // StorageContract &sContract = vStorageContract.find(contract.getAddress())->second;
         // LogPrintf("local storage size: %d, contract: %d\n", iter->second.vIPFSNode.size(), contract.theContractState.num_ipfsnode);
         // TODO: This position has core dump several times, must repair asap.
-        LogPrintf("[recieve contract]: Before copy ipfsnode:%d\n",getValue());
+        // LogPrintf("[recieve contract]: Before copy ipfsnode:%d\n",getValue());
 
         if (ipfsContract.theContractState.num_ipfsnode > iter->second.vIPFSNode.size()) {
             for (int i = 0; i < ipfsContract.theContractState.num_ipfsnode; ++i) {
@@ -355,7 +367,7 @@ void CBlockContractManager::receiveContract(Contract contract)
                 }
             }
         }
-        LogPrintf("[recieve contract]: Before doing works Evaluate:%d\n",getValue());
+        // LogPrintf("[recieve contract]: Before doing works Evaluate:%d\n",getValue());
 
         if (ipfsContract.getArgs()[0] == "save_block") {
             std::fstream csvStream;
@@ -456,7 +468,7 @@ void CBlockContractManager::receiveContract(Contract contract)
             ReadKey();
 
             for (int i = 3; i + 6 < ipfsContract.getArgs().size(); i += 7) {
-                LogPrintf("[recieve contract]/[save_blocks]: Evaluate:%d\n",getValue());
+                // LogPrintf("[recieve contract]/[save_blocks]: Evaluate:%d\n",getValue());
                 if (vColdBlock.find(uint256S(ipfsContract.getArgs()[i].c_str())) != vColdBlock.end()) {
                     // LogPrintf("Save blocks handle:%s\n", ipfsContract.getArgs()[i].c_str());
                     std::map<uint256, CBlockEach>::iterator blockIter = vColdBlock.find(uint256S(ipfsContract.getArgs()[i].c_str()));
@@ -566,16 +578,16 @@ void CBlockContractManager::receiveContract(Contract contract)
         for (int i = 0; i < ipfsContract.theContractState.num_ipfsnode; ++i) {
             CIPFSNode ipfsNode;
             ipfsNode.pubKey = ipfsContract.aIpfsNode[i].address;
-            LogPrintf("Pubkey: %s\n", ipfsNode.pubKey);
+            // LogPrintf("Pubkey: %s\n", ipfsNode.pubKey);
             ipfsNode.ip = ipfsContract.aIpfsNode[i].ip;
             newS.vIPFSNode.insert(std::pair<std::string, CIPFSNode>(ipfsNode.pubKey, ipfsNode));
         }
-        LogPrintf("Insert new contract\n");
+        // LogPrintf("Insert new contract\n");
         newS.hash = ipfsContract.getAddress();
         vStorageContract.insert(std::pair<uint256, StorageContract>(newS.hash, newS));
     }
     // ipfsContract.~IpfsContract();
-    LogPrintf("[recieve contract]: memory monitoring down:%d\n",getValue());
+    // LogPrintf("[recieve contract]: memory monitoring down:%d\n",getValue());
 
 }
 CBlock* CBlockContractManager::retrieveBlock(uint256)
@@ -709,12 +721,12 @@ void CBlockContractManager::challengeBlock(int nHeight)
 {
     LOCK(cs_main);
     if (vStorageContract.size() == 0) return;
-    LogPrintf("[challengeBlock]: memory monitoring up:%d\n",getValue());
+    // LogPrintf("[challengeBlock]: memory monitoring up:%d\n",getValue());
 
     int nChallengeTime = gArgs.GetArg("-challengetimes",CHALLENGE_TIME);
     if (nHeight > n_last_challenge_height + nChallengeTime) {
         srand(time(NULL));
-        std::cout << "Challenge..." << std::endl;
+        // std::cout << "Challenge..." << std::endl;
         // TODO: check TFILECID vs blockCID
         fs::path csvPath = GetDataDir() / "challenge.csv";
         std::fstream csvStream;
@@ -742,11 +754,11 @@ void CBlockContractManager::challengeBlock(int nHeight)
                     int rand_times = blocks.size() > nChallengeblocks ? nChallengeblocks : blocks.size();
                     Block* block = nullptr;
                     for (int i = 0; i < rand_times; ++i) {
-                        LogPrintf("Challenge times:%d\n", i);
+                        // LogPrintf("Challenge times:%d\n", i);
                         int rand_num = rand() % blocks.size();
                         block = FindBlockFromIpfsContract(ccontract,blocks[rand_num].ToString());
                         CPOR_challenge* pchallenge;
-                        LogPrintf("TFILECID: %s\n",block->tfileCID);
+                        // LogPrintf("TFILECID: %s\n",block->tfileCID);
                         if(block == nullptr) continue;
                         // if(block.tfileCID != vColdBlock.find(blocks[rand_num])->second.tfileCID){
                         CPOR_t* t = UnserializeT(StrHex(GetFromIPFS(block->tfileCID)));
@@ -755,12 +767,12 @@ void CBlockContractManager::challengeBlock(int nHeight)
                         // } else {
                         //     pchallenge = cpor_challenge_file(blocks[rand_num].ToString(), pkey);
                         // }
-                        LogPrintf("Challenge create\n");
+                        // LogPrintf("Challenge create\n");
                         if (!pchallenge) continue;
                         std::vector<unsigned char> challenge = SerializeChallenge(pchallenge);
                         destroy_cpor_challenge(pchallenge);
                         std::string challengeCID = AddToIPFS(HexStr(challenge));
-                        LogPrintf("Output challenge: %s\n", challengeCID);
+                        // LogPrintf("Output challenge: %s\n", challengeCID);
                         chalmsg.vChallenge.push_back(std::pair<uint256, std::string>(blocks[rand_num], challengeCID));
                         csvStream << time(NULL) << "," << blocks[rand_num].ToString() << ",0\n";
 
@@ -774,6 +786,6 @@ void CBlockContractManager::challengeBlock(int nHeight)
         csvStream.close();
         n_last_challenge_height = nHeight;
     }
-    LogPrintf("[challengeBlock]: memory monitoring end:%d\n",getValue());
+    // LogPrintf("[challengeBlock]: memory monitoring end:%d\n",getValue());
 
 }

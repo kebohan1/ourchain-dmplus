@@ -1616,10 +1616,10 @@ int contract_main(int argc, char** argv) {
                             &aIpfsNode[n_ipfs_index], atoi(argv[i + 3]));
         err_printf("Proofs:%d,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1],
                    argv[i + 2], argv[i + 3]);
-        if (ret > 0) {
-          out_printf("Proofs:%d,%s,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1],
+
+        out_printf("Proofs:%d,%s,%s,%s,%s,%s\n", ret, argv[i], argv[i + 1],
                      argv[i + 2], argv[i + 3], time(NULL));
-        }
+
         // out_clear();
       }
 

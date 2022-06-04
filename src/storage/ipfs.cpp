@@ -130,15 +130,19 @@ static int getValue()
     return result;
 }
 
+static int64_t getTime(){
+    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
+
 void IpfsStorageManager::receiveMessage(CStorageMessage msg)
 {
     // LogPrintf("Process Storage Reqeust Msg, size: %d\n",msgs.size());
     // LogPrintf("The smart contract key store is : %s\n",RegisterKey);
-
-
-
-    LogPrintf("CID: %s,TagCID: %s,ChallengeCID: %s\n", msg.CID, msg.TagCID, msg.firstChallengeCID);
-    LogPrintf("memory before: %d\n", getValue());
+    
+    std::vector<string> ipfsTimeStamp;
+    std::vector<string> appHash;
+    // LogPrintf("CID: %s,TagCID: %s,ChallengeCID: %s\n", msg.CID, msg.TagCID, msg.firstChallengeCID);
+    // LogPrintf("memory before: %d\n", getValue());
     // if (vStoredBlock.find(msg.hash) != vStoredBlock.end()) return;
     Contract contract;
     contract.address = contractHash;
@@ -155,6 +159,7 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
     }
 
     vReadySolvingMsg.push_back(msg);
+    ipfsTimeStamp.push_back(getTime()+","+msg.hash.ToString()+",recieve");
     int nColdPoolMax = gArgs.GetArg("-coldpool", 29);
     if (vReadySolvingMsg.size() < nColdPoolMax) return;
     if (RegisterKey.empty()) return;
@@ -178,23 +183,26 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
             // free(oldBlock);
             continue;
         }
+        ipfsTimeStamp.push_back(getTime()+","+msg.hash.ToString()+",process_start");
         PinIPFS(readymsg.CID);
         PinIPFS(readymsg.TagCID);
-        LogPrintf("IPFS get cmp\n");
+        // LogPrintf("IPFS get cmp\n");
         // std::cout << "Get All needed file cmp" <<std::endl;
-
+        
+        
         CPOR_challenge* pchallenge = UnserializeChallenge(StrHex(GetFromIPFS(readymsg.firstChallengeCID)));
-
+        ipfsTimeStamp.push_back(getTime()+","+msg.hash.ToString()+",create_proof_start");
         CPOR_proof* pproof = cpor_prove_file(GetFromIPFS(readymsg.CID),
                                             StrHex(GetFromIPFS(readymsg.TagCID)),
                                             pchallenge);
+        ipfsTimeStamp.push_back(getTime()+","+msg.hash.ToString()+",create_proof_end");
         std::string proofCID = AddToIPFS(HexStr(SerializeProof(pproof)));
-        LogPrintf("Serialize IPFS cmp\n");
+        // LogPrintf("Serialize IPFS cmp\n");
         // std::cout << "Unserialize CPOR_challenge" << UnserializeChallenge(StrHex(challenge))->I <<std::endl;
 
 
-        LogPrintf("IPFS signup output: %s\n", contractHash.ToString());
-
+        // LogPrintf("IPFS signup output: %s\n", contractHash.ToString());
+// 
 
         contract.args.push_back(readymsg.hash.ToString());
         contract.args.push_back(readymsg.CID);
@@ -217,17 +225,29 @@ void IpfsStorageManager::receiveMessage(CStorageMessage msg)
         // cblock.TagCID = readymsg.TagCID;
         // vStoredBlock.insert(std::pair<uint256, IpfsStoredBlock>(readymsg.hash, cblock));
         ++savingNum;
+        appHash.push_back(msg.hash.ToString());
     }
 
-    LogPrintf("argc: %d\n", contract.args.size());
+    // LogPrintf("argc: %d\n", contract.args.size());
     CTransactionRef tx;
     CCoinControl no_coin_control;
     std::string error;
     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
+    auto time = getTime();
+    for(auto hash : appHash){
+        ipfsTimeStamp.push_back(time+","+hash+",contract_end");
+    }
     vReadySolvingMsg.clear();
-    LogPrintf("memory after: %d\n", getValue());
+    fs::path csvPath = GetDataDir() / "ipfs.csv";
+    std::fstream csvStream;
+    csvStream.open(csvPath.string(), ios::app);
+    for(auto & writeStr: ipfsTimeStamp){
+        csvStream << writeStr << std::endl;
+    }
+    csvStream.close();
+    // LogPrintf("memory after: %d\n", getValue());
 
-    LogPrintf("Process Cmp\n");
+    // LogPrintf("Process Cmp\n");
     // DynamicStoreBlocks(savingNum);
 }
 
@@ -237,9 +257,10 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
     CTxDestination dest = getDest(pwallet);
     EnsureWalletIsUnlocked(pwallet);
 
-    LogPrintf("Recieve Challenge\n");
-    LogPrintf("memory before: %d\n", getValue());
-
+    // LogPrintf("Recieve Challenge\n");
+    // LogPrintf("memory before: %d\n", getValue());
+    std::vector<string> ipfsTimeStamp;
+    std::vector<string> appHash;
     Contract contract;
 
     contract.action = contract_action::ACTION_CALL;
@@ -248,19 +269,21 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
     contract.args.push_back("proof_blocks");
     contract.args.push_back(RegisterKey); // pubkey
     IpfsContract oldContract{contract};
-    LogPrintf("Msg size: %d\n", msg.vChallenge.size());
+    // LogPrintf("Msg size: %d\n", msg.vChallenge.size());
     for (auto& item : msg.vChallenge) {
-        LogPrintf("block hash: %s\n", item.first.ToString());
+        // LogPrintf("block hash: %s\n", item.first.ToString());
+        ipfsTimeStamp.push_back(getTime()+","+item.first.ToString()+",start_generating_proof");
         Block* oldBlock = oldContract.findBlock(item.first.ToString());
         if (oldBlock == nullptr) continue;
         std::string block = GetFromIPFS(oldBlock->CIDHash);
         std::string challenge = GetFromIPFS(item.second);
         std::string tag = GetFromIPFS(oldBlock->tagCID);
         CPOR_challenge* pchallenge = UnserializeChallenge(StrHex(challenge));
-        LogPrintf("Challenge recieve\n");
+        // LogPrintf("Challenge recieve\n");
         CPOR_proof* pproof = cpor_prove_file(block, StrHex(tag), pchallenge);
+        ipfsTimeStamp.push_back(getTime()+","+item.first.ToString()+",end_generating_proof");
         std::string proofCID = AddToIPFS(HexStr(SerializeProof(pproof)));
-        LogPrintf("Challenge prove created\n");
+        // LogPrintf("Challenge prove created\n");
 
         // LogPrintf("IPFS signup output: %s\n",contractHash.ToString());
         /*
@@ -278,12 +301,24 @@ void IpfsStorageManager::receiveChallengeMessage(ChallengeMessage msg)
         // delete(oldBlock);
         destroy_cpor_challenge(pchallenge);
         destroy_cpor_proof(pproof);
+        appHash.push_back(item.first.ToString());
     }
-    LogPrintf("memory before submit tx: %d\n", getValue());
+    // LogPrintf("memory before submit tx: %d\n", getValue());
     CTransactionRef tx;
     CCoinControl no_coin_control;
     SendContractTx(pwallet, &contract, dest, tx, no_coin_control);
-    LogPrintf("memory after: %d\n", getValue());
+    auto time  = getTime();
+    for(auto hash : appHash){
+        ipfsTimeStamp.push_back(time+","+hash+",contract_end");
+    }
+    fs::path csvPath = GetDataDir() / "ipfsProve.csv";
+    std::fstream csvStream;
+    csvStream.open(csvPath.string(), ios::app);
+    for(auto & writeStr: ipfsTimeStamp){
+        csvStream << writeStr << std::endl;
+    }
+    csvStream.close();
+    // LogPrintf("memory after: %d\n", getValue());
 }
 
 void IpfsStorageManager::init()
