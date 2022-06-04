@@ -131,14 +131,17 @@ std::vector<CStorageMessage> CBlockContractManager::pushColdPool()
         fs::path TFile = path / "Tfiles" / item.hash.ToString().append(".t");
         // LogPrintf("hash: %s\n", item.hash.ToString());        auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
         auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-        ipfsTimeStamp.push_back(std::to_string(newTime) + "," + item.hash.ToString() + ",deploy_list_process_start\n");
+        string newTimeStr = std::to_string(newTime);
+        ipfsTimeStamp.push_back(newTimeStr + "," + item.hash.ToString() + ",deploy_list_process_start\n");
         if (!fs::exists(TagFile)) {
             auto tagStartTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-            ipfsTimeStamp.push_back(std::to_string(tagStartTime)+ "," + item.hash.ToString() + ",process_start\n");
+            newTimeStr = std::to_string(tagStartTime);
+            ipfsTimeStamp.push_back(newTimeStr+ "," + item.hash.ToString() + ",process_start\n");
             int ret = local_cpor_tag_file(str, item.hash, pkey);
             // LogPrintf("CPOR TagFile: %d\n",ret);
             auto tagtime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-            ipfsTimeStamp.push_back(std::to_string(tagtime) + "," + item.hash.ToString() + ",process_start\n");
+            newTimeStr = std::to_string(tagtime);
+            ipfsTimeStamp.push_back(newTimeStr + "," + item.hash.ToString() + ",process_start\n");
         }
         // LogPrintf("%s starts\n", item.first.ToString());
 
@@ -158,7 +161,9 @@ std::vector<CStorageMessage> CBlockContractManager::pushColdPool()
         message.hash = item.hash;
         
         vDeployList.push_back(message);
-        ipfsTimeStamp.push_back(std::to_string(newTime) + "," + item.hash.ToString() + ",deploy_list_process_end\n");
+        newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        newTimeStr = std::to_string(newTime);
+        ipfsTimeStamp.push_back(newTimeStr + "," + item.hash.ToString() + ",deploy_list_process_end\n");
         ++i;
     }
 
@@ -315,7 +320,8 @@ bool CBlockContractManager::deployContract(std::vector<CStorageMessage>& vDeploy
                         vColdBlock.insert(std::pair<uint256, CBlockEach>(blockEach.hash,blockEach));
                     }
                     auto newTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-                    ipfsTimeStamp.push_back(std::to_string(newTime) +"," + list.hash.ToString() + ",deploy");
+                    string newTimeStr = std::to_string(newTime);
+                    ipfsTimeStamp.push_back(newTimeStr +"," + list.hash.ToString() + ",deploy");
                     flag = true;
                 }
             }
