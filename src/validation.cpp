@@ -2517,8 +2517,12 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     fs::path csvPath = GetDataDir() / "throughputs.csv";
     std::fstream csvStream;
     csvStream.open(csvPath.string(), ios::app);
-    csvStream << nTimeStart << "," << nBlocksTotal << "," << block.vtx.size() << "\n";
-
+    unsigned int TotalSize=0;
+    for(auto& txref: block.vtx){
+        TotalSize += txref->GetTotalSize();
+    }
+    csvStream << nTimeStart << " " << nBlocksTotal << " " << block.vtx.size() << " " << TotalSize  << "\n";
+    csvStream.close();
     return true;
 }
 
